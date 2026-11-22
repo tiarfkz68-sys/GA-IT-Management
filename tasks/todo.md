@@ -89,11 +89,11 @@
 ## Task 6: Pengujian Integrasi End-to-End & Git Version Control Setup
 **Description:** Menguji seluruh alur kerja (filter instan, multi-select, cetak stiker massal, mutasi massal, audit log) di container Docker yang aktif, membuat file `.gitignore`, menginisialisasi repository Git, dan membuat commit yang rapi dan terstruktur.
 **Acceptance criteria:**
-- [ ] Container Docker `gait_app` dan `gait_db` berjalan normal tanpa error runtime.
-- [ ] File `.gitignore` terkonfigurasi dengan benar.
-- [ ] Repository Git terinisialisasi (`git init`) dan seluruh perubahan dicatat dalam commit Git yang informatif.
+- [x] Container Docker `gait_app` dan `gait_db` berjalan normal tanpa error runtime.
+- [x] File `.gitignore` terkonfigurasi dengan benar.
+- [x] Repository Git terinisialisasi (`git init`) dan seluruh perubahan dicatat dalam commit Git yang informatif.
 **Verification:**
-- [ ] `git status` dan `git log` menampilkan riwayat commit yang bersih.
+- [x] `git status` dan `git log` menampilkan riwayat commit yang bersih. (Verified: commit 75cad7a)
 **Dependencies:** Tasks 1-5
 **Files likely touched:**
 - `.gitignore`, repository git
