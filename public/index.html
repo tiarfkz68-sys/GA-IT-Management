@@ -59,10 +59,25 @@
 
   <style>
     * { box-sizing: border-box; }
+    html, body {
+      max-width: 100vw;
+      width: 100%;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: #F4EFEA;
       color: #151D2E;
+    }
+    
+    /* Table horizontal scroll container */
+    .table-responsive-wrapper {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
     /* Page & Element Animations */
@@ -299,23 +314,23 @@
   <!-- ========================================================= -->
   <!-- MAIN WORKSPACE -->
   <!-- ========================================================= -->
-  <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+  <main class="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-y-auto overflow-x-hidden">
 
     <!-- Top Header Bar -->
-    <header class="h-16 bg-linen-50 border-b border-linen-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 flex-shrink-0">
-      <div class="flex items-center gap-2.5">
-        <button id="btn-mobile-menu" onclick="toggleMobileSidebar()" class="md:hidden text-navy-900 hover:text-navy-700 p-2 -ml-2 text-lg rounded-lg hover:bg-linen-200 transition" title="Toggle Menu">
+    <header class="h-16 bg-linen-50 border-b border-linen-200 px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 flex-shrink-0 w-full max-w-full">
+      <div class="flex items-center gap-2 min-w-0 flex-1 mr-2">
+        <button id="btn-mobile-menu" onclick="toggleMobileSidebar()" class="md:hidden text-navy-900 hover:text-navy-700 p-2 -ml-1 text-base rounded-lg hover:bg-linen-200 transition shrink-0" title="Toggle Menu" aria-label="Buka Menu">
           <i class="fa-solid fa-bars"></i>
         </button>
-        <h1 id="top-title" class="text-base md:text-lg font-bold text-navy-900 leading-none truncate max-w-[150px] sm:max-w-none">Dashboard Overview</h1>
-        <span id="top-company-badge" class="hidden sm:inline-block text-xs bg-linen-200 text-navy-800 px-2 py-0.5 rounded font-medium border border-linen-300 truncate max-w-[180px]">PT NUSA PERSADA UTAMA</span>
+        <h1 id="top-title" class="text-sm sm:text-base md:text-lg font-bold text-navy-900 leading-tight truncate">Dashboard Overview</h1>
+        <span id="top-company-badge" class="hidden lg:inline-block text-xs bg-linen-200 text-navy-800 px-2 py-0.5 rounded font-medium border border-linen-300 truncate max-w-[180px]">PT NUSA PERSADA UTAMA</span>
       </div>
 
       <!-- Quick Action Buttons -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <div class="dropdown relative inline-block text-left">
-          <button onclick="toggleExportMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-linen-200 hover:bg-linen-300 text-navy-900 rounded-lg border border-linen-300 transition">
-            <i class="fa-solid fa-file-excel text-emerald-700"></i> Export CSV
+          <button onclick="toggleExportMenu()" class="inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold bg-linen-200 hover:bg-linen-300 text-navy-900 rounded-lg border border-linen-300 transition" title="Export CSV">
+            <i class="fa-solid fa-file-excel text-emerald-700"></i> <span class="hidden sm:inline">Export CSV</span>
           </button>
           <div id="export-dropdown" class="hidden absolute right-0 mt-1 w-44 bg-linen-50 border border-linen-200 rounded-lg shadow-lg z-30 py-1 text-xs">
             <a href="/api/reports/export?type=assets" download class="block px-3 py-2 text-navy-800 hover:bg-linen-100"><i class="fa-solid fa-laptop mr-2 text-navy-600"></i> Register Aset</a>
@@ -325,20 +340,20 @@
           </div>
         </div>
 
-        <button onclick="openModal('modal-ticket')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition">
+        <button onclick="openModal('modal-ticket')" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition">
           <i class="fa-solid fa-plus"></i> Catat Log
         </button>
-        <button onclick="openModal('modal-consumable-out')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-700 hover:bg-navy-600 text-white rounded-lg shadow-sm transition">
+        <button onclick="openModal('modal-consumable-out')" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-700 hover:bg-navy-600 text-white rounded-lg shadow-sm transition">
           <i class="fa-solid fa-arrow-up"></i> Keluar ATK
         </button>
-        <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
-          <i class="fa-solid fa-circle-plus"></i> + Aset
+        <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition whitespace-nowrap">
+          <i class="fa-solid fa-circle-plus"></i> <span>+ Aset</span>
         </button>
       </div>
     </header>
 
     <!-- Content Area Container -->
-    <div class="p-6 space-y-6 flex-1">
+    <div class="p-3 sm:p-5 md:p-6 space-y-4 md:space-y-6 flex-1 min-w-0 w-full max-w-full">
 
       <!-- ===================================================== -->
       <!-- TAB 1: DASHBOARD OVERVIEW -->
@@ -447,51 +462,55 @@
       <!-- ===================================================== -->
       <!-- TAB 2: DAFTAR ASET UTAMA -->
       <!-- ===================================================== -->
-      <section id="view-assets" class="hidden space-y-4 relative">
-        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2.5 flex-1 min-w-[320px] flex-wrap">
-            <div class="relative flex-1 min-w-[200px] max-w-sm">
+      <section id="view-assets" class="hidden space-y-4 relative w-full max-w-full min-w-0">
+        <div class="bg-linen-50 p-3 sm:p-4 rounded-xl border border-linen-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3 w-full">
+          <!-- Search & Filters Group -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0 w-full">
+            <div class="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs"></i>
               <input id="asset-search" oninput="onAssetFilterChange()" type="text" placeholder="Cari tag, nama barang, SN, spek, user..." 
                 class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-navy-900">
             </div>
 
-            <select id="asset-filter-cat" onchange="onAssetFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
-              <option value="">Semua Divisi</option>
-              <option value="IT">Hanya IT</option>
-              <option value="GA">Hanya GA</option>
-            </select>
+            <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <select id="asset-filter-cat" onchange="onAssetFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+                <option value="">Semua Divisi</option>
+                <option value="IT">Hanya IT</option>
+                <option value="GA">Hanya GA</option>
+              </select>
 
-            <select id="asset-filter-status" onchange="onAssetFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
-              <option value="">Semua Status</option>
-              <option value="available">Tersedia (Gudang)</option>
-              <option value="assigned">Dipakai</option>
-              <option value="maintenance">Dalam Servis</option>
-              <option value="broken">Rusak / Afkir</option>
-            </select>
+              <select id="asset-filter-status" onchange="onAssetFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+                <option value="">Semua Status</option>
+                <option value="available">Tersedia (Gudang)</option>
+                <option value="assigned">Dipakai</option>
+                <option value="maintenance">Dalam Servis</option>
+                <option value="broken">Rusak / Afkir</option>
+              </select>
 
-            <button onclick="resetAssetFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition" title="Reset Filter">
-              <i class="fa-solid fa-rotate-left"></i>
-            </button>
+              <button onclick="resetAssetFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0" title="Reset Filter">
+                <i class="fa-solid fa-rotate-left"></i>
+              </button>
 
-            <span id="assets-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 aset</span>
+              <span id="assets-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 aset</span>
+            </div>
           </div>
 
-          <div class="flex items-center gap-2">
-            <button onclick="downloadAssetExcelTemplate()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-linen-200 hover:bg-linen-300 text-navy-900 rounded-lg border border-linen-300 transition" title="Unduh format spreadsheet">
-              <i class="fa-solid fa-file-excel text-emerald-700"></i> Unduh Template
+          <!-- Action Buttons Group -->
+          <div class="flex items-center gap-2 w-full lg:w-auto flex-wrap sm:flex-nowrap pt-2 lg:pt-0 border-t lg:border-t-0 border-linen-200">
+            <button onclick="downloadAssetExcelTemplate()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-linen-200 hover:bg-linen-300 text-navy-900 rounded-lg border border-linen-300 transition whitespace-nowrap" title="Unduh format spreadsheet">
+              <i class="fa-solid fa-file-excel text-emerald-700"></i> Template
             </button>
-            <button onclick="openModal('modal-import-assets')" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition">
+            <button onclick="openModal('modal-import-assets')" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition whitespace-nowrap">
               <i class="fa-solid fa-file-import"></i> Import Excel
             </button>
-            <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+            <button onclick="showAddAssetScreen()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition whitespace-nowrap">
               <i class="fa-solid fa-plus"></i> + Tambah Aset Baru
             </button>
           </div>
         </div>
 
-        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
+        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden min-w-0 w-full max-w-full">
+          <div class="table-responsive-wrapper">
             <table class="w-full text-left border-collapse min-w-[980px]">
               <thead>
                 <tr>
@@ -513,25 +532,25 @@
         </div>
 
         <!-- FLOATING BATCH ACTION BAR -->
-        <div id="batch-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-navy-700 flex items-center gap-4 transition-all duration-300 transform translate-y-28 opacity-0 pointer-events-none">
-          <div class="flex items-center gap-2 pr-3 border-r border-navy-700 text-xs font-bold whitespace-nowrap">
+        <div id="batch-action-bar" class="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-2xl border border-navy-700 flex items-center gap-2 sm:gap-4 transition-all duration-300 transform translate-y-28 opacity-0 pointer-events-none max-w-[calc(100vw-1.5rem)] overflow-x-auto">
+          <div class="flex items-center gap-2 pr-2 sm:pr-3 border-r border-navy-700 text-xs font-bold whitespace-nowrap shrink-0">
             <span id="batch-count" class="bg-amber-500 text-navy-950 px-2 py-0.5 rounded-full text-[11px] font-bold font-mono">0</span>
-            <span>Aset Dipilih</span>
+            <span class="hidden xs:inline">Aset Dipilih</span>
           </div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <button onclick="printBatchStickers()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg transition shadow-sm border border-navy-600">
-              <i class="fa-solid fa-print"></i> Cetak Label Massal
+          <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button onclick="printBatchStickers()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg transition shadow-sm border border-navy-600 whitespace-nowrap">
+              <i class="fa-solid fa-print"></i> <span class="hidden sm:inline">Cetak Label </span>Massal
             </button>
-            <button onclick="openBatchHandoverModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg transition shadow-sm">
-              <i class="fa-solid fa-file-signature"></i> Mutasi / BAST Gabungan
+            <button onclick="openBatchHandoverModal()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg transition shadow-sm whitespace-nowrap">
+              <i class="fa-solid fa-file-signature"></i> Mutasi / BAST
             </button>
-            <button onclick="openBatchStatusModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition shadow-sm">
+            <button onclick="openBatchStatusModal()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition shadow-sm whitespace-nowrap">
               <i class="fa-solid fa-arrows-rotate"></i> Ubah Status
             </button>
-            <button onclick="executeBatchDelete()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-700 hover:bg-rose-600 text-white rounded-lg transition shadow-sm">
+            <button onclick="executeBatchDelete()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold bg-rose-700 hover:bg-rose-600 text-white rounded-lg transition shadow-sm whitespace-nowrap">
               <i class="fa-solid fa-trash"></i> Hapus
             </button>
-            <button onclick="clearAssetSelection()" class="text-xs text-slate-400 hover:text-white ml-2 p-1 transition" title="Batalkan Pilihan">
+            <button onclick="clearAssetSelection()" class="text-xs text-slate-400 hover:text-white ml-1 p-1 transition shrink-0" title="Batalkan Pilihan">
               <i class="fa-solid fa-xmark text-sm"></i>
             </button>
           </div>
@@ -635,19 +654,19 @@
       <!-- ===================================================== -->
       <!-- TAB 3: AKSESORIS -->
       <!-- ===================================================== -->
-      <section id="view-accessories" class="hidden space-y-4">
-        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex items-center justify-between">
+      <section id="view-accessories" class="hidden space-y-4 w-full max-w-full min-w-0">
+        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-bold text-navy-900">Daftar Aksesoris & Peripherals</h2>
             <p class="text-xs text-navy-700/70">Mouse, keyboard, adaptor charger yang terhubung langsung ke unit laptop atau karyawan.</p>
           </div>
-          <button onclick="openModal('modal-accessory')" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+          <button onclick="openModal('modal-accessory')" class="inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition whitespace-nowrap w-full sm:w-auto">
             <i class="fa-solid fa-plus"></i> + Tambah Aksesoris
           </button>
         </div>
 
-        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
+        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden min-w-0 w-full max-w-full">
+          <div class="table-responsive-wrapper">
             <table class="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr>
@@ -669,54 +688,56 @@
       <!-- ===================================================== -->
       <!-- TAB 4: CONSUMABLES / ATK -->
       <!-- ===================================================== -->
-      <section id="view-consumables" class="hidden space-y-4">
+      <section id="view-consumables" class="hidden space-y-4 w-full max-w-full min-w-0">
         <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-bold text-navy-900">Stok Barang Habis Pakai (Consumables)</h2>
             <p class="text-xs text-navy-700/70">Kertas, toner printer, kabel LAN, baterai dengan sistem mutasi stok masuk & keluar.</p>
           </div>
 
-          <div class="flex items-center gap-2">
-            <button onclick="openModal('modal-consumable-in')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition">
-              <i class="fa-solid fa-arrow-down"></i> + Masuk Stok (Restock)
+          <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <button onclick="openModal('modal-consumable-in')" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition whitespace-nowrap">
+              <i class="fa-solid fa-arrow-down"></i> + Masuk Stok
             </button>
-            <button onclick="openModal('modal-consumable-out')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-700 hover:bg-navy-600 text-white rounded-lg shadow-sm transition">
-              <i class="fa-solid fa-arrow-up"></i> - Keluar Barang (Pakai)
+            <button onclick="openModal('modal-consumable-out')" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-700 hover:bg-navy-600 text-white rounded-lg shadow-sm transition whitespace-nowrap">
+              <i class="fa-solid fa-arrow-up"></i> - Keluar Barang
             </button>
-            <button onclick="openModal('modal-consumable-new')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+            <button onclick="openModal('modal-consumable-new')" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition whitespace-nowrap">
               <i class="fa-solid fa-plus"></i> Master Baru
             </button>
           </div>
         </div>
 
         <!-- Filter Toolbar Consumables -->
-        <div class="bg-linen-50 p-3 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center gap-2.5">
-          <div class="relative flex-1 min-w-[200px] max-w-sm">
+        <div class="bg-linen-50 p-3 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2.5 w-full">
+          <div class="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs"></i>
             <input id="consumable-search" oninput="onConsumableFilterChange()" type="text" placeholder="Cari nama barang / ATK..." 
               class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-navy-900">
           </div>
-          <select id="consumable-filter-cat" onchange="onConsumableFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
-            <option value="">Semua Kategori ATK</option>
-            <option value="kertas">Kertas</option>
-            <option value="toner">Toner / Tinta</option>
-            <option value="it_supplies">IT Supplies / LAN</option>
-            <option value="pantry">Pantry / Kebersihan</option>
-            <option value="atk">ATK Umum</option>
-          </select>
-          <select id="consumable-filter-status" onchange="onConsumableFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
-            <option value="">Semua Status Stok</option>
-            <option value="low">Hanya Kritis / Habis</option>
-            <option value="safe">Stok Aman</option>
-          </select>
-          <button onclick="resetConsumableFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition" title="Reset Filter">
-            <i class="fa-solid fa-rotate-left"></i>
-          </button>
-          <span id="consumables-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 barang</span>
+          <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <select id="consumable-filter-cat" onchange="onConsumableFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+              <option value="">Semua Kategori ATK</option>
+              <option value="kertas">Kertas</option>
+              <option value="toner">Toner / Tinta</option>
+              <option value="it_supplies">IT Supplies / LAN</option>
+              <option value="pantry">Pantry / Kebersihan</option>
+              <option value="atk">ATK Umum</option>
+            </select>
+            <select id="consumable-filter-status" onchange="onConsumableFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+              <option value="">Semua Status Stok</option>
+              <option value="low">Hanya Kritis / Habis</option>
+              <option value="safe">Stok Aman</option>
+            </select>
+            <button onclick="resetConsumableFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0" title="Reset Filter">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <span id="consumables-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 barang</span>
+          </div>
         </div>
 
-        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
+        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden min-w-0 w-full max-w-full">
+          <div class="table-responsive-wrapper">
             <table class="w-full text-left border-collapse min-w-[750px]">
               <thead>
                 <tr>
@@ -737,45 +758,47 @@
       <!-- ===================================================== -->
       <!-- TAB 5: LOGBOOK PEKERJAAN -->
       <!-- ===================================================== -->
-      <section id="view-logbook" class="hidden space-y-4">
-        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2.5 flex-1 min-w-[320px] flex-wrap">
-            <div class="relative flex-1 min-w-[200px] max-w-sm">
+      <section id="view-logbook" class="hidden space-y-4 w-full max-w-full min-w-0">
+        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0 w-full">
+            <div class="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs"></i>
               <input id="ticket-search" oninput="onTicketFilterChange()" type="text" placeholder="Cari nomor tiket, judul pekerjaan, pemohon..." 
                 class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-navy-900">
             </div>
 
-            <select id="ticket-filter-status" onchange="onTicketFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
-              <option value="">Semua Status</option>
-              <option value="open">Open (Belum Selesai)</option>
-              <option value="in_progress">In Progress (Sedang Dikerjakan)</option>
-              <option value="resolved">Resolved (Selesai)</option>
-              <option value="closed">Closed (Ditutup)</option>
-            </select>
+            <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <select id="ticket-filter-status" onchange="onTicketFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+                <option value="">Semua Status</option>
+                <option value="open">Open (Belum Selesai)</option>
+                <option value="in_progress">In Progress (Sedang Dikerjakan)</option>
+                <option value="resolved">Resolved (Selesai)</option>
+                <option value="closed">Closed (Ditutup)</option>
+              </select>
 
-            <select id="ticket-filter-priority" onchange="onTicketFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
-              <option value="">Semua Prioritas</option>
-              <option value="urgent">Urgent</option>
-              <option value="high">Tinggi</option>
-              <option value="medium">Sedang</option>
-              <option value="low">Rendah</option>
-            </select>
+              <select id="ticket-filter-priority" onchange="onTicketFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+                <option value="">Semua Prioritas</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">Tinggi</option>
+                <option value="medium">Sedang</option>
+                <option value="low">Rendah</option>
+              </select>
 
-            <button onclick="resetTicketFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition" title="Reset Filter">
-              <i class="fa-solid fa-rotate-left"></i>
-            </button>
+              <button onclick="resetTicketFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0" title="Reset Filter">
+                <i class="fa-solid fa-rotate-left"></i>
+              </button>
 
-            <span id="ticket-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 tiket</span>
+              <span id="ticket-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 tiket</span>
+            </div>
           </div>
 
-          <button onclick="openModal('modal-ticket')" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+          <button onclick="openModal('modal-ticket')" class="inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition whitespace-nowrap w-full sm:w-auto">
             <i class="fa-solid fa-plus"></i> + Catat Logbook Baru
           </button>
         </div>
 
-        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
+        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden min-w-0 w-full max-w-full">
+          <div class="table-responsive-wrapper">
             <table class="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr>
@@ -797,19 +820,19 @@
       <!-- ===================================================== -->
       <!-- TAB 6: AUDIT TRAIL / LOG AKTIVITAS -->
       <!-- ===================================================== -->
-      <section id="view-audit" class="hidden space-y-4">
-        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex items-center justify-between">
+      <section id="view-audit" class="hidden space-y-4 w-full max-w-full min-w-0">
+        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-bold text-navy-900">Audit Trail & Log Perubahan Sistem</h2>
             <p class="text-xs text-navy-700/70">Mencatat otomatis setiap penambahan aset, mutasi serah terima, servis, dan pengeluaran barang.</p>
           </div>
-          <button onclick="loadActivityLogs()" class="px-3 py-1.5 text-xs font-semibold bg-linen-200 hover:bg-linen-300 text-navy-900 rounded-lg border border-linen-300 transition">
+          <button onclick="loadActivityLogs()" class="px-3 py-1.5 text-xs font-semibold bg-linen-200 hover:bg-linen-300 text-navy-900 rounded-lg border border-linen-300 transition whitespace-nowrap w-full sm:w-auto">
             <i class="fa-solid fa-rotate"></i> Refresh Log
           </button>
         </div>
 
-        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
+        <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden min-w-0 w-full max-w-full">
+          <div class="table-responsive-wrapper">
             <table class="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr>
@@ -829,19 +852,19 @@
       <!-- ===================================================== -->
       <!-- TAB 7: PENGATURAN (SETTINGS WORKBENCH) -->
       <!-- ===================================================== -->
-      <section id="view-settings" class="hidden space-y-6">
+      <section id="view-settings" class="hidden space-y-6 w-full max-w-full min-w-0">
         <!-- Submenu Navigation Pills -->
-        <div class="flex items-center gap-2 border-b border-linen-200 pb-3">
-          <button onclick="switchSettingsTab('logo')" id="settab-logo" class="px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition">
+        <div class="flex items-center gap-2 border-b border-linen-200 pb-3 overflow-x-auto whitespace-nowrap scrollbar-none w-full max-w-full">
+          <button onclick="switchSettingsTab('logo')" id="settab-logo" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition">
             <i class="fa-solid fa-palette mr-1.5"></i> 1. Logo & Header
           </button>
-          <button onclick="switchSettingsTab('users')" id="settab-users" class="px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+          <button onclick="switchSettingsTab('users')" id="settab-users" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
             <i class="fa-solid fa-users-gear mr-1.5"></i> 2. Akun & Permission
           </button>
-          <button onclick="switchSettingsTab('categories')" id="settab-categories" class="px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+          <button onclick="switchSettingsTab('categories')" id="settab-categories" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
             <i class="fa-solid fa-tags mr-1.5"></i> 3. Kategori Barang
           </button>
-          <button onclick="switchSettingsTab('label')" id="settab-label" class="px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+          <button onclick="switchSettingsTab('label')" id="settab-label" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
             <i class="fa-solid fa-print mr-1.5 text-amber-600"></i> 4. Cetak Label (Niimbot & XPrinter)
           </button>
         </div>
@@ -2878,6 +2901,12 @@
       state.currentTab = tab;
       closeMobileSidebar();
 
+      const mainEl = document.querySelector('main');
+      if (mainEl) {
+        mainEl.scrollLeft = 0;
+        mainEl.scrollTop = 0;
+      }
+
       document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('bg-amber-500', 'text-navy-950', 'font-bold', 'shadow-sm', 'text-white', 'bg-blue-600');
         btn.classList.add('text-slate-400');
@@ -2922,6 +2951,11 @@
 
     function showAddAssetScreen() {
       closeMobileSidebar();
+      const mainEl = document.querySelector('main');
+      if (mainEl) {
+        mainEl.scrollLeft = 0;
+        mainEl.scrollTop = 0;
+      }
       ['view-dashboard', 'view-assets', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-settings'].forEach(v => {
         const el = document.getElementById(v);
         if (el) el.classList.add('hidden');
