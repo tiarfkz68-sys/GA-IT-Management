@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gait_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gait_user
+      POSTGRES_PASSWORD: gait_secret_password
+      POSTGRES_DB: gait_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - gait_pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gait_user -d gait_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: gait_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://gait_user:gait_secret_password@db:5432/gait_db
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  gait_pgdata:

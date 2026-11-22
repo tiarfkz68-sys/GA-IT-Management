@@ -1,0 +1,3550 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GA & IT Operations Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    
+    .th-cell {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      background-color: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .td-cell {
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #1e293b;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    tr:hover .td-cell {
+      background-color: #f8fafc;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    /* Print media query for thermal sticker & BAST */
+    @media print {
+      body * { visibility: hidden; }
+      #printable-sticker, #printable-sticker * { visibility: visible; }
+      #printable-bast, #printable-bast * { visibility: visible; }
+      #printable-batch-bast, #printable-batch-bast * { visibility: visible; }
+      #printable-sticker {
+        position: fixed;
+        left: 0;
+        top: 0;
+        margin: 0;
+        padding: 0;
+      }
+      .thermal-page-break {
+        page-break-after: always;
+        break-after: page;
+      }
+      #printable-bast, #printable-batch-bast {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+      }
+    }
+
+    /* Draggable Canvas item */
+    .drag-item {
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.05s ease, box-shadow 0.1s ease;
+    }
+    .drag-item:active {
+      cursor: grabbing;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased h-screen flex overflow-hidden">
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-5 right-5 z-[100] transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none">
+    <div class="flex items-center gap-3 px-4 py-3 bg-slate-900 text-white rounded-lg shadow-xl border border-slate-700 text-sm font-medium">
+      <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+      <span id="toast-msg">Notifikasi</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- 0. LOGIN MODAL (SECURITY GATE FOR VPS) -->
+  <!-- ========================================================= -->
+  <div id="modal-login" class="modal-overlay hidden z-[90]">
+    <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border border-slate-200 space-y-6">
+      <div class="text-center space-y-1">
+        <div class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center mx-auto text-xl shadow-md">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900 pt-2" id="login-app-title">GA & IT Workbench</h2>
+        <p class="text-xs text-slate-500">Masuk untuk mengakses portal operasional.</p>
+      </div>
+
+      <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Alamat Email *</label>
+          <input id="login-email" type="email" value="admin@company.com" class="w-full text-sm bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi (Password) *</label>
+          <input id="login-password" type="password" value="admin123" class="w-full text-sm bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-right-to-bracket"></i> Masuk ke Dashboard
+        </button>
+      </form>
+
+      <!-- Quick demo accounts switcher -->
+      <div class="border-t border-slate-100 pt-4 text-xs text-slate-500">
+        <span class="font-bold text-slate-700 block mb-2">Akun Demo Cepat (Password: admin123):</span>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button onclick="fillLogin('admin@company.com')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-center font-medium">Admin (Anda)</button>
+          <button onclick="fillLogin('hrd@company.com')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-center font-medium">HRD (Backup)</button>
+          <button onclick="fillLogin('finance@company.com')" class="p-1.5 bg-slate-100 hover:bg-slate-200 rounded text-center font-medium">Finance</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- SIDEBAR NAVIGATION -->
+  <!-- ========================================================= -->
+  <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 z-30 select-none">
+    <div>
+      <!-- Brand Logo / Header -->
+      <div class="h-16 px-5 flex items-center gap-3 border-b border-slate-800 bg-slate-950/40">
+        <div id="brand-logo-container" class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-sm overflow-hidden">
+          <i class="fa-solid fa-server text-sm" id="brand-default-icon"></i>
+          <img id="brand-logo-img" class="w-full h-full object-contain hidden" alt="Logo">
+        </div>
+        <div class="truncate">
+          <div class="text-sm font-bold text-white tracking-wide leading-none truncate" id="brand-company-name">GA-IT OPS</div>
+          <div class="text-[11px] text-slate-400 font-normal mt-0.5 truncate" id="brand-portal-title">Management Workbench</div>
+        </div>
+      </div>
+
+      <!-- User Session Info -->
+      <div class="p-3 bg-slate-950/30 border-b border-slate-800/80 flex items-center justify-between">
+        <div class="flex items-center gap-2.5 truncate">
+          <div class="w-7 h-7 rounded-full bg-slate-800 text-blue-400 border border-slate-700 flex items-center justify-center font-bold text-xs" id="user-avatar-initial">A</div>
+          <div class="truncate">
+            <div class="text-xs font-bold text-white leading-tight truncate" id="current-user-name">Rian Pratama</div>
+            <div class="text-[10px] text-blue-400 uppercase font-semibold" id="current-user-role">ADMIN</div>
+          </div>
+        </div>
+        <button onclick="logout()" title="Logout" class="text-slate-400 hover:text-rose-400 p-1.5 text-xs transition">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="p-3 space-y-1">
+        <button onclick="nav('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-white bg-blue-600 shadow-sm">
+          <i class="fa-solid fa-chart-pie w-4 text-center"></i>
+          <span>Dashboard</span>
+        </button>
+
+        <button onclick="nav('assets')" id="nav-assets" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+          <i class="fa-solid fa-laptop w-4 text-center"></i>
+          <span>Daftar Aset Utama</span>
+        </button>
+
+        <button onclick="nav('accessories')" id="nav-accessories" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+          <i class="fa-solid fa-keyboard w-4 text-center"></i>
+          <span>Aksesoris & Peripherals</span>
+        </button>
+
+        <button onclick="nav('consumables')" id="nav-consumables" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+          <i class="fa-solid fa-box-archive w-4 text-center"></i>
+          <span>Consumables (ATK)</span>
+        </button>
+
+        <button onclick="nav('logbook')" id="nav-logbook" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+          <i class="fa-solid fa-clipboard-list w-4 text-center"></i>
+          <span>Logbook Pekerjaan</span>
+        </button>
+
+        <button onclick="nav('audit')" id="nav-audit" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+          <i class="fa-solid fa-shield-halved w-4 text-center"></i>
+          <span>Log Aktivitas (Audit)</span>
+        </button>
+
+        <div class="pt-2 border-t border-slate-800/80">
+          <button onclick="nav('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-400 hover:text-white hover:bg-slate-800">
+            <i class="fa-solid fa-gear w-4 text-center text-amber-400"></i>
+            <span>Pengaturan</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+
+    <!-- Engine Status Footer -->
+    <div class="p-4 border-t border-slate-800/80 bg-slate-950/20 text-xs">
+      <div class="flex items-center justify-between text-slate-400 text-[11px] mb-1 font-medium">
+        <span>VPS & Kiri Engine</span>
+        <span class="text-emerald-400 font-bold">ONLINE</span>
+      </div>
+      <div class="text-[10px] text-slate-500">PostgreSQL 16 • Multi-Role Active</div>
+    </div>
+  </aside>
+
+  <!-- ========================================================= -->
+  <!-- MAIN WORKSPACE -->
+  <!-- ========================================================= -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+
+    <!-- Top Header Bar -->
+    <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <h1 id="top-title" class="text-lg font-bold text-slate-900 leading-none">Dashboard Overview</h1>
+        <span id="top-company-badge" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium border border-slate-200">PT NUSA PERSADA UTAMA</span>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center gap-2">
+        <div class="dropdown relative inline-block text-left">
+          <button onclick="toggleExportMenu()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300 transition">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i> Export CSV
+          </button>
+          <div id="export-dropdown" class="hidden absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-lg z-30 py-1 text-xs">
+            <a href="/api/reports/export?type=assets" download class="block px-3 py-2 text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-laptop mr-2 text-slate-400"></i> Register Aset</a>
+            <a href="/api/reports/export?type=consumables" download class="block px-3 py-2 text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-box mr-2 text-slate-400"></i> Stok Consumables</a>
+            <a href="/api/reports/export?type=checkouts" download class="block px-3 py-2 text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-arrow-up mr-2 text-slate-400"></i> Mutasi Keluar ATK</a>
+            <a href="/api/reports/export?type=tickets" download class="block px-3 py-2 text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-clipboard-list mr-2 text-slate-400"></i> Logbook Tiket</a>
+          </div>
+        </div>
+
+        <button onclick="openModal('modal-ticket')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+          <i class="fa-solid fa-plus"></i> Catat Log
+        </button>
+        <button onclick="openModal('modal-consumable-out')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition">
+          <i class="fa-solid fa-arrow-up"></i> Keluar ATK
+        </button>
+        <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-black text-white rounded-lg shadow-sm transition">
+          <i class="fa-solid fa-circle-plus"></i> + Aset
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Area Container -->
+    <div class="p-6 space-y-6 flex-1">
+
+      <!-- ===================================================== -->
+      <!-- TAB 1: DASHBOARD OVERVIEW -->
+      <!-- ===================================================== -->
+      <section id="view-dashboard" class="space-y-6">
+        <!-- 4 Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div onclick="nav('assets')" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 transition cursor-pointer">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider">Aset Utama</span>
+              <i class="fa-solid fa-laptop text-blue-600"></i>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span id="dash-assets-total" class="text-3xl font-extrabold text-slate-900">0</span>
+              <span id="dash-assets-avail" class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">0 Tersedia</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-2 font-medium">
+              <span id="dash-assets-it">0</span> IT • <span id="dash-assets-ga">0</span> GA
+            </div>
+          </div>
+
+          <div onclick="nav('accessories')" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-purple-400 transition cursor-pointer">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider">Aksesoris Linked</span>
+              <i class="fa-solid fa-keyboard text-purple-600"></i>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span id="dash-acc-total" class="text-3xl font-extrabold text-slate-900">0</span>
+              <span id="dash-acc-linked" class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-semibold border border-purple-200">0 Tertaut Laptop</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-2 font-medium">Mouse, Keyboard & Adaptor</div>
+          </div>
+
+          <div onclick="nav('consumables')" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 transition cursor-pointer">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider">Consumables (ATK)</span>
+              <i class="fa-solid fa-box-open text-amber-600"></i>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span id="dash-csm-total" class="text-3xl font-extrabold text-slate-900">0</span>
+              <span id="dash-csm-low" class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200">0 Kritis</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-2 font-medium">Kertas, Tinta & Baterai</div>
+          </div>
+
+          <div onclick="nav('logbook')" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:border-rose-400 transition cursor-pointer">
+            <div class="flex items-center justify-between text-slate-500 mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider">Logbook / Tiket</span>
+              <i class="fa-solid fa-clipboard-check text-rose-600"></i>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span id="dash-ticket-open" class="text-3xl font-extrabold text-rose-600">0</span>
+              <span id="dash-ticket-resolved" class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">0 Selesai</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-2 font-medium">Tugas Masuk dari WA/Lisan</div>
+          </div>
+        </div>
+
+        <!-- Recent Highlights -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+              <h2 class="text-sm font-bold text-slate-800">Aset Terbaru</h2>
+              <button onclick="nav('assets')" class="text-xs text-blue-600 hover:text-blue-800 font-semibold">Buka Tabel Lengkap →</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    <th class="th-cell">Tag</th>
+                    <th class="th-cell">Nama Barang</th>
+                    <th class="th-cell">Kategori</th>
+                    <th class="th-cell">Pemegang</th>
+                    <th class="th-cell">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-recent-assets"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Stok Menipis
+                </h3>
+                <button onclick="nav('consumables')" class="text-xs text-blue-600 font-semibold">Kelola</button>
+              </div>
+              <div id="dash-low-stock-list" class="space-y-2 text-xs"></div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-clock text-rose-500"></i> Tiket Terbuka
+                </h3>
+                <button onclick="nav('logbook')" class="text-xs text-blue-600 font-semibold">Lihat</button>
+              </div>
+              <div id="dash-open-tickets-list" class="space-y-2 text-xs"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 2: DAFTAR ASET UTAMA -->
+      <!-- ===================================================== -->
+      <section id="view-assets" class="hidden space-y-4 relative">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 flex-1 min-w-[320px] flex-wrap">
+            <div class="relative flex-1 min-w-[200px] max-w-sm">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input id="asset-search" oninput="onAssetFilterChange()" type="text" placeholder="Cari tag, nama barang, SN, spek, user..." 
+                class="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800">
+            </div>
+
+            <select id="asset-filter-cat" onchange="onAssetFilterChange()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+              <option value="">Semua Divisi</option>
+              <option value="IT">Hanya IT</option>
+              <option value="GA">Hanya GA</option>
+            </select>
+
+            <select id="asset-filter-status" onchange="onAssetFilterChange()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+              <option value="">Semua Status</option>
+              <option value="available">Tersedia (Gudang)</option>
+              <option value="assigned">Dipakai</option>
+              <option value="maintenance">Dalam Servis</option>
+              <option value="broken">Rusak / Afkir</option>
+            </select>
+
+            <button onclick="resetAssetFilters()" class="text-xs text-slate-500 hover:text-slate-800 p-1.5 rounded hover:bg-slate-100 transition" title="Reset Filter">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+
+            <span id="assets-counter" class="text-xs font-semibold text-slate-500 ml-auto whitespace-nowrap">Menampilkan 0 aset</span>
+          </div>
+
+          <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-plus"></i> + Tambah Aset Baru
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[980px]">
+              <thead>
+                <tr>
+                  <th class="th-cell w-10 text-center">
+                    <input type="checkbox" id="chk-select-all-assets" onchange="toggleSelectAllAssets(this.checked)" class="rounded text-blue-600 focus:ring-blue-500 cursor-pointer" title="Pilih Semua">
+                  </th>
+                  <th class="th-cell w-32">Tag Aset</th>
+                  <th class="th-cell w-56">Nama & Model</th>
+                  <th class="th-cell min-w-[220px]">Spesifikasi Detail</th>
+                  <th class="th-cell w-44">Aksesoris Tertaut</th>
+                  <th class="th-cell w-40">Pemegang / Lokasi</th>
+                  <th class="th-cell w-28">Status</th>
+                  <th class="th-cell w-36 text-right">Aksi & BAST</th>
+                </tr>
+              </thead>
+              <tbody id="assets-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FLOATING BATCH ACTION BAR -->
+        <div id="batch-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 transition-all duration-300 transform translate-y-28 opacity-0 pointer-events-none">
+          <div class="flex items-center gap-2 pr-3 border-r border-slate-700 text-xs font-bold whitespace-nowrap">
+            <span id="batch-count" class="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[11px] font-mono">0</span>
+            <span>Aset Dipilih</span>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="printBatchStickers()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm">
+              <i class="fa-solid fa-print"></i> Cetak Label Massal
+            </button>
+            <button onclick="openBatchHandoverModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition shadow-sm">
+              <i class="fa-solid fa-file-signature"></i> Mutasi / BAST Gabungan
+            </button>
+            <button onclick="openBatchStatusModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition shadow-sm">
+              <i class="fa-solid fa-arrows-rotate"></i> Ubah Status
+            </button>
+            <button onclick="executeBatchDelete()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-lg transition shadow-sm">
+              <i class="fa-solid fa-trash"></i> Hapus
+            </button>
+            <button onclick="clearAssetSelection()" class="text-xs text-slate-400 hover:text-white ml-2 p-1 transition" title="Batalkan Pilihan">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 2B: DEDICATED SCREEN: TAMBAH ASET BARU -->
+      <!-- ===================================================== -->
+      <section id="view-add-asset" class="hidden space-y-5 max-w-4xl mx-auto">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+          <div>
+            <button onclick="hideAddAssetScreen()" class="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-blue-600 transition mb-1">
+              <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Aset
+            </button>
+            <h2 class="text-xl font-bold text-slate-900">Form Registrasi Aset Baru</h2>
+            <p class="text-xs text-slate-500">Kategori dan spesifikasi otomatis mengikuti pengaturan master.</p>
+          </div>
+        </div>
+
+        <form id="form-add-asset" onsubmit="submitNewAsset(event)" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div>
+            <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 pb-1 border-b border-slate-100 flex items-center gap-2 text-blue-600">
+              <i class="fa-solid fa-tag"></i> 1. Identitas & Klasifikasi Aset
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Divisi *</label>
+                <select id="new-category" onchange="onCategoryChange()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required>
+                  <option value="IT">IT (Information Technology)</option>
+                  <option value="GA">GA (General Affairs & Fasilitas)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe / Kategori Barang *</label>
+                <select id="new-subcategory" onchange="renderDynamicSpecsForm()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required></select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Kode Tag Aset (Opsional)</label>
+                <input id="new-code" type="text" placeholder="Auto-generated jika kosong" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono">
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama & Merk Perangkat *</label>
+                <input id="new-name" type="text" placeholder="Contoh: MacBook Pro M3 14 / ThinkPad T14 / AC Daikin 1.5PK" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-900" required>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Serial Number / IMEI</label>
+                <input id="new-serial" type="text" placeholder="SN Pabrik / IMEI Ponsel" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono">
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 pb-1 border-b border-slate-100 flex items-center gap-2 text-blue-600">
+              <i class="fa-solid fa-microchip"></i> 2. Spesifikasi Teknis
+            </h3>
+            <div id="dynamic-spec-container" class="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200"></div>
+          </div>
+
+          <div>
+            <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3 pb-1 border-b border-slate-100 flex items-center gap-2 text-blue-600">
+              <i class="fa-solid fa-user-check"></i> 3. Status & Penempatan
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Awal</label>
+                <select id="new-status" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+                  <option value="available">Tersedia di Gudang (Available)</option>
+                  <option value="assigned">Diserahkan ke Karyawan (Assigned)</option>
+                  <option value="maintenance">Dalam Perbaikan (Maintenance)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Lokasi Fisik</label>
+                <input id="new-location" type="text" value="Jakarta HQ" placeholder="Contoh: Ruang IT Lt 3" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Diserahkan Kepada (User)</label>
+                <select id="new-assigned-user" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+                  <option value="">-- Belum Di-assign (Di Gudang) --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button type="button" onclick="hideAddAssetScreen()" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Batal</button>
+            <button type="submit" class="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-check"></i> Simpan Aset Baru
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 3: AKSESORIS -->
+      <!-- ===================================================== -->
+      <section id="view-accessories" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900">Daftar Aksesoris & Peripherals</h2>
+            <p class="text-xs text-slate-500">Mouse, keyboard, adaptor charger yang terhubung langsung ke unit laptop atau karyawan.</p>
+          </div>
+          <button onclick="openModal('modal-accessory')" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-plus"></i> + Tambah Aksesoris
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr>
+                  <th class="th-cell w-56">Nama Aksesoris</th>
+                  <th class="th-cell w-32">Kategori</th>
+                  <th class="th-cell w-36">Serial Number</th>
+                  <th class="th-cell min-w-[220px]">Tertaut Pada Aset Utama</th>
+                  <th class="th-cell w-40">Pemegang / User</th>
+                  <th class="th-cell w-28">Status</th>
+                  <th class="th-cell w-20 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="accessories-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 4: CONSUMABLES / ATK -->
+      <!-- ===================================================== -->
+      <section id="view-consumables" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900">Stok Barang Habis Pakai (Consumables)</h2>
+            <p class="text-xs text-slate-500">Kertas, toner printer, kabel LAN, baterai dengan sistem mutasi stok masuk & keluar.</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="openModal('modal-consumable-in')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-arrow-down"></i> + Masuk Stok (Restock)
+            </button>
+            <button onclick="openModal('modal-consumable-out')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-arrow-up"></i> - Keluar Barang (Pakai)
+            </button>
+            <button onclick="openModal('modal-consumable-new')" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-black text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-plus"></i> Master Baru
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Toolbar Consumables -->
+        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2.5">
+          <div class="relative flex-1 min-w-[200px] max-w-sm">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input id="consumable-search" oninput="onConsumableFilterChange()" type="text" placeholder="Cari nama barang / ATK..." 
+              class="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800">
+          </div>
+          <select id="consumable-filter-cat" onchange="onConsumableFilterChange()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+            <option value="">Semua Kategori ATK</option>
+            <option value="kertas">Kertas</option>
+            <option value="toner">Toner / Tinta</option>
+            <option value="it_supplies">IT Supplies / LAN</option>
+            <option value="pantry">Pantry / Kebersihan</option>
+            <option value="atk">ATK Umum</option>
+          </select>
+          <select id="consumable-filter-status" onchange="onConsumableFilterChange()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+            <option value="">Semua Status Stok</option>
+            <option value="low">Hanya Kritis / Habis</option>
+            <option value="safe">Stok Aman</option>
+          </select>
+          <button onclick="resetConsumableFilters()" class="text-xs text-slate-500 hover:text-slate-800 p-1.5 rounded hover:bg-slate-100 transition" title="Reset Filter">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+          <span id="consumables-counter" class="text-xs font-semibold text-slate-500 ml-auto whitespace-nowrap">Menampilkan 0 barang</span>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[750px]">
+              <thead>
+                <tr>
+                  <th class="th-cell min-w-[200px]">Nama Barang</th>
+                  <th class="th-cell w-36">Kategori</th>
+                  <th class="th-cell w-32">Sisa Stok</th>
+                  <th class="th-cell w-32">Batas Minimum</th>
+                  <th class="th-cell w-28">Status</th>
+                  <th class="th-cell w-40 text-right">Aksi Cepat</th>
+                </tr>
+              </thead>
+              <tbody id="consumables-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 5: LOGBOOK PEKERJAAN -->
+      <!-- ===================================================== -->
+      <section id="view-logbook" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 flex-1 min-w-[320px] flex-wrap">
+            <div class="relative flex-1 min-w-[200px] max-w-sm">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <input id="ticket-search" oninput="onTicketFilterChange()" type="text" placeholder="Cari nomor tiket, judul pekerjaan, pemohon..." 
+                class="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-800">
+            </div>
+
+            <select id="ticket-filter-status" onchange="onTicketFilterChange()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+              <option value="">Semua Status</option>
+              <option value="open">Open (Belum Selesai)</option>
+              <option value="in_progress">In Progress (Sedang Dikerjakan)</option>
+              <option value="resolved">Resolved (Selesai)</option>
+              <option value="closed">Closed (Ditutup)</option>
+            </select>
+
+            <select id="ticket-filter-priority" onchange="onTicketFilterChange()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700">
+              <option value="">Semua Prioritas</option>
+              <option value="urgent">Urgent</option>
+              <option value="high">Tinggi</option>
+              <option value="medium">Sedang</option>
+              <option value="low">Rendah</option>
+            </select>
+
+            <button onclick="resetTicketFilters()" class="text-xs text-slate-500 hover:text-slate-800 p-1.5 rounded hover:bg-slate-100 transition" title="Reset Filter">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+
+            <span id="ticket-counter" class="text-xs font-semibold text-slate-500 ml-auto whitespace-nowrap">Menampilkan 0 tiket</span>
+          </div>
+
+          <button onclick="openModal('modal-ticket')" class="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-plus"></i> + Catat Logbook Baru
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[850px]">
+              <thead>
+                <tr>
+                  <th class="th-cell w-28">No. Tiket</th>
+                  <th class="th-cell min-w-[240px]">Judul Pekerjaan & Keluhan</th>
+                  <th class="th-cell w-36">Kategori</th>
+                  <th class="th-cell w-36">Pemohon</th>
+                  <th class="th-cell w-32">Aset Terkait</th>
+                  <th class="th-cell w-28">Status</th>
+                  <th class="th-cell w-28 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tickets-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 6: AUDIT TRAIL / LOG AKTIVITAS -->
+      <!-- ===================================================== -->
+      <section id="view-audit" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900">Audit Trail & Log Perubahan Sistem</h2>
+            <p class="text-xs text-slate-500">Mencatat otomatis setiap penambahan aset, mutasi serah terima, servis, dan pengeluaran barang.</p>
+          </div>
+          <button onclick="loadActivityLogs()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-300">
+            <i class="fa-solid fa-rotate"></i> Refresh Log
+          </button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[800px]">
+              <thead>
+                <tr>
+                  <th class="th-cell w-36">Waktu</th>
+                  <th class="th-cell w-40">User Pelaksana</th>
+                  <th class="th-cell w-36">Aksi</th>
+                  <th class="th-cell w-28">Target</th>
+                  <th class="th-cell">Rincian Perubahan</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 7: PENGATURAN (SETTINGS WORKBENCH) -->
+      <!-- ===================================================== -->
+      <section id="view-settings" class="hidden space-y-6">
+        <!-- Submenu Navigation Pills -->
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+          <button onclick="switchSettingsTab('logo')" id="settab-logo" class="px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-sm transition">
+            <i class="fa-solid fa-palette mr-1.5"></i> 1. Logo & Header
+          </button>
+          <button onclick="switchSettingsTab('users')" id="settab-users" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-200 transition">
+            <i class="fa-solid fa-users-gear mr-1.5"></i> 2. Akun & Permission
+          </button>
+          <button onclick="switchSettingsTab('categories')" id="settab-categories" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-200 transition">
+            <i class="fa-solid fa-tags mr-1.5"></i> 3. Kategori Barang
+          </button>
+          <button onclick="switchSettingsTab('label')" id="settab-label" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-200 transition">
+            <i class="fa-solid fa-print mr-1.5 text-amber-500"></i> 4. Cetak Label (Niimbot & XPrinter)
+          </button>
+        </div>
+
+        <!-- Submenu 1: Logo & Header -->
+        <div id="settings-view-logo" class="space-y-4">
+          <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-2xl space-y-4">
+            <h3 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">Identitas Kantor & Portal</h3>
+            
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Perusahaan / Kantor *</label>
+              <input id="set-company-name" type="text" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold text-slate-900">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Judul Aplikasi / Header Portal</label>
+              <input id="set-app-title" type="text" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">URL Logo Perusahaan (PNG/JPG Transparan)</label>
+              <input id="set-logo-url" oninput="previewLogo()" type="text" placeholder="https://example.com/logo.png" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono">
+              <span class="text-[11px] text-slate-400 mt-1 block">Logo ini akan tampil di sudut kiri atas dan kop surat BAST.</span>
+            </div>
+
+            <div class="pt-2">
+              <button onclick="saveGeneralSettings()" class="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+                Simpan Logo & Header
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submenu 2: Akun & Permission -->
+        <div id="settings-view-users" class="hidden space-y-4">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Manajemen Pengguna & Hak Akses</h3>
+              <p class="text-xs text-slate-500">Kelola akun Anda, backup HRD saat cuti/sakit, dan akses Finance untuk audit laporan.</p>
+            </div>
+            <button onclick="openModal('modal-add-user')" class="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm">
+              <i class="fa-solid fa-user-plus mr-1"></i> + Tambah Pengguna
+            </button>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr>
+                  <th class="th-cell">Nama Pengguna</th>
+                  <th class="th-cell">Alamat Email</th>
+                  <th class="th-cell">Hak Akses (Role)</th>
+                  <th class="th-cell">Status</th>
+                  <th class="th-cell text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Submenu 3: Kategori Barang -->
+        <div id="settings-view-categories" class="hidden space-y-4">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Master Kategori Barang</h3>
+              <p class="text-xs text-slate-500">Daftar kategori IT & GA yang muncul di form registrasi aset baru.</p>
+            </div>
+            <button onclick="openModal('modal-add-category')" class="px-3.5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm">
+              <i class="fa-solid fa-plus mr-1"></i> + Tambah Kategori
+            </button>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr>
+                  <th class="th-cell">Domain</th>
+                  <th class="th-cell">Nama Kategori</th>
+                  <th class="th-cell">Kode Unik</th>
+                  <th class="th-cell">Prefix Tag Aset</th>
+                  <th class="th-cell text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="categories-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Submenu 4: Cetak Label Designer (Niimbot B1 & XPrinter) -->
+        <div id="settings-view-label" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left: Settings & Presets -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
+              <h3 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-blue-600"></i> Pengaturan Label & Printer
+              </h3>
+
+              <!-- Presets -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Preset Ukuran Printer Bawaan:</label>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <button onclick="applyLabelPreset('niimbot_50x30')" class="p-2 rounded border border-slate-200 hover:border-blue-500 text-left font-medium bg-slate-50">
+                    <span class="font-bold text-slate-800 block">Niimbot B1</span> 50 x 30 mm
+                  </button>
+                  <button onclick="applyLabelPreset('niimbot_40x30')" class="p-2 rounded border border-slate-200 hover:border-blue-500 text-left font-medium bg-slate-50">
+                    <span class="font-bold text-slate-800 block">Niimbot B1</span> 40 x 30 mm
+                  </button>
+                  <button onclick="applyLabelPreset('xprinter_70x40')" class="p-2 rounded border border-slate-200 hover:border-blue-500 text-left font-medium bg-slate-50">
+                    <span class="font-bold text-slate-800 block">XPrinter</span> 70 x 40 mm
+                  </button>
+                  <button onclick="applyLabelPreset('xprinter_80x50')" class="p-2 rounded border border-slate-200 hover:border-blue-500 text-left font-medium bg-slate-50">
+                    <span class="font-bold text-slate-800 block">XPrinter</span> 80 x 50 mm
+                  </button>
+                </div>
+              </div>
+
+              <!-- Custom Dimensions -->
+              <div class="grid grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Lebar Stiker (mm) *</label>
+                  <input id="label-width-mm" oninput="updateLabelCanvasSize()" type="number" value="50" min="20" max="150" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2 font-bold text-slate-900">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Tinggi Stiker (mm) *</label>
+                  <input id="label-height-mm" oninput="updateLabelCanvasSize()" type="number" value="30" min="15" max="150" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2 font-bold text-slate-900">
+                </div>
+              </div>
+
+              <!-- Toggle Elements -->
+              <div class="border-t border-slate-100 pt-4">
+                <label class="block text-xs font-bold text-slate-900 mb-2">Pilih Elemen Yang Ditampilkan:</label>
+                <div class="space-y-2 text-xs">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-company" onchange="toggleLabelElement('company')" class="rounded text-blue-600" checked>
+                    <span>Nama Perusahaan / Header</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-code" onchange="toggleLabelElement('code')" class="rounded text-blue-600" checked>
+                    <span class="font-bold font-mono">Kode Tag Aset (e.g. IT-LPT-001)</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-qrcode" onchange="toggleLabelElement('qrcode')" class="rounded text-blue-600" checked>
+                    <span class="font-semibold text-indigo-700">QR Code (Scan Cepat)</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-name" onchange="toggleLabelElement('name')" class="rounded text-blue-600" checked>
+                    <span>Nama & Model Barang</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-specs" onchange="toggleLabelElement('specs')" class="rounded text-blue-600" checked>
+                    <span>Rincian Spesifikasi (CPU/RAM/PK)</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-serial" onchange="toggleLabelElement('serial')" class="rounded text-blue-600" checked>
+                    <span>Serial Number / IMEI</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-location" onchange="toggleLabelElement('location')" class="rounded text-blue-600">
+                    <span>Lokasi Ruangan</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <button onclick="saveLabelTemplate()" class="flex-1 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm">
+                  Simpan Template Stiker
+                </button>
+                <button onclick="printSampleLabel()" class="px-3.5 py-2 text-xs font-semibold bg-slate-900 hover:bg-black text-white rounded-lg shadow-sm" title="Test Print">
+                  <i class="fa-solid fa-print"></i> Test Print
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Interactive Visual Drag & Drop Canvas Preview -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center bg-slate-50/50">
+              <div class="text-center mb-4">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-arrows-up-down-left-right text-blue-600"></i> Kanvas Preview Drag & Drop Stiker
+                </span>
+                <p class="text-[11px] text-slate-400 mt-0.5">Klik dan geser (drag) elemen teks/QR code di bawah ini untuk mengatur letaknya sesuai ukuran stiker.</p>
+              </div>
+
+              <!-- Thermal Sticker Boundary Wrapper -->
+              <div class="p-6 bg-slate-200/80 rounded-xl shadow-inner border border-slate-300">
+                <div id="label-canvas" class="relative bg-white border border-slate-800 shadow-md rounded-sm overflow-hidden select-none" style="width: 320px; height: 192px;">
+                  
+                  <!-- Draggable Elements inside the canvas -->
+                  <div id="el-company" class="drag-item absolute text-[11px] font-bold text-slate-900 whitespace-nowrap" style="left: 10px; top: 8px;">
+                    <span id="canvas-company-txt">PT NUSA PERSADA UTAMA</span>
+                  </div>
+
+                  <div id="el-code" class="drag-item absolute font-mono font-black text-sm text-black whitespace-nowrap bg-slate-100 px-1 border border-black" style="left: 10px; top: 28px;">
+                    IT-LPT-001
+                  </div>
+
+                  <div id="el-qrcode" class="drag-item absolute p-0.5 bg-white border border-slate-300 rounded" style="left: 215px; top: 12px;">
+                    <div id="canvas-qrcode-box" style="width: 70px; height: 70px;"></div>
+                  </div>
+
+                  <div id="el-name" class="drag-item absolute text-[11px] font-bold text-slate-800 whitespace-nowrap max-w-[180px] truncate" style="left: 10px; top: 62px;">
+                    MacBook Pro M3 Pro 14"
+                  </div>
+
+                  <div id="el-specs" class="drag-item absolute text-[9px] font-mono text-slate-700 whitespace-nowrap" style="left: 10px; top: 82px;">
+                    18GB RAM • 512GB SSD
+                  </div>
+
+                  <div id="el-serial" class="drag-item absolute text-[9px] font-mono text-slate-600 whitespace-nowrap" style="left: 10px; top: 100px;">
+                    SN: C02G90XXMD6M
+                  </div>
+
+                  <div id="el-location" class="drag-item absolute text-[9px] text-slate-600 whitespace-nowrap hidden" style="left: 10px; top: 118px;">
+                    Lokasi: Jakarta HQ - Lt 3
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="text-[11px] text-slate-400 mt-4 flex items-center gap-3">
+                <span>Ukuran Stiker Nyata: <b id="canvas-dim-label" class="text-slate-700 font-mono">50 x 30 mm</b></span>
+                <span>•</span>
+                <span>Printer Siap: <b class="text-emerald-600">Niimbot B1 / XPrinter</b></span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: CETAK BAST DIGITAL (OFFICIAL HANDOVER) -->
+  <!-- ========================================================= -->
+  <div id="modal-bast" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-file-contract text-blue-600"></i> Dokumen Berita Acara Serah Terima (BAST)
+        </h3>
+        <div class="flex items-center gap-2">
+          <button onclick="printBAST()" class="px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded shadow-sm">
+            <i class="fa-solid fa-print mr-1"></i> Cetak / Simpan PDF
+          </button>
+          <button onclick="closeModal('modal-bast')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <!-- Printable BAST Paper -->
+      <div id="printable-bast" class="p-6 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs space-y-4 font-serif">
+        <!-- Kop Surat -->
+        <div class="text-center border-b-2 border-slate-800 pb-3">
+          <h2 class="text-base font-bold uppercase tracking-wider" id="bast-company-name">PT NUSA PERSADA UTAMA</h2>
+          <p class="text-[11px] text-slate-600">DIVISI GENERAL AFFAIRS & TEKNOLOGI INFORMASI</p>
+          <p class="text-[10px] text-slate-500 font-sans">Head Office: Jakarta, Indonesia • Telepon / Helpdesk: (021) 555-0199</p>
+        </div>
+
+        <div class="text-center pt-1">
+          <h3 class="font-bold text-sm underline uppercase">BERITA ACARA SERAH TERIMA ASET</h3>
+          <p class="text-[11px] font-sans font-mono" id="bast-doc-number">Nomor: BAST/2026/11/001</p>
+        </div>
+
+        <p class="font-sans text-[11px] leading-relaxed">
+          Pada hari ini, <span id="bast-date-str" class="font-semibold"></span>, telah diserahkan fasilitas/aset operasional kantor kepada karyawan yang bersangkutan dengan rincian sebagai berikut:
+        </p>
+
+        <!-- Tabel Identitas Barang -->
+        <table class="w-full border-collapse border border-slate-300 font-sans text-[11px]">
+          <tbody>
+            <tr class="border-b border-slate-200">
+              <td class="p-2 font-bold bg-slate-50 w-36">Kode Tag Aset</td>
+              <td class="p-2 font-mono font-bold text-blue-700" id="bast-asset-code">IT-LPT-001</td>
+            </tr>
+            <tr class="border-b border-slate-200">
+              <td class="p-2 font-bold bg-slate-50">Nama Perangkat</td>
+              <td class="p-2 font-semibold" id="bast-asset-name">MacBook Pro M3</td>
+            </tr>
+            <tr class="border-b border-slate-200">
+              <td class="p-2 font-bold bg-slate-50">Serial Number / IMEI</td>
+              <td class="p-2 font-mono" id="bast-asset-serial">-</td>
+            </tr>
+            <tr class="border-b border-slate-200">
+              <td class="p-2 font-bold bg-slate-50">Spesifikasi Detail</td>
+              <td class="p-2" id="bast-asset-specs">-</td>
+            </tr>
+            <tr class="border-b border-slate-200">
+              <td class="p-2 font-bold bg-slate-50">Aksesoris Bawaan</td>
+              <td class="p-2" id="bast-asset-accs">Unit Lengkap, Adaptor Charger</td>
+            </tr>
+            <tr>
+              <td class="p-2 font-bold bg-slate-50">Kondisi Fisik</td>
+              <td class="p-2 font-semibold text-emerald-700">Baik / Siap Operasional</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pernyataan -->
+        <p class="font-sans text-[10px] text-slate-600 leading-normal italic">
+          * Catatan: Penerima bertanggung jawab penuh atas pemeliharaan dan penggunaan wajar aset perusahaan ini. Apabila terjadi mutasi, pengunduran diri (resign), atau kerusakan wajib melapor ke GA & IT Support.
+        </p>
+
+        <!-- Kolom Tanda Tangan -->
+        <div class="grid grid-cols-3 gap-4 pt-6 text-center font-sans text-[11px]">
+          <div>
+            <p class="text-slate-600 mb-12">Yang Menyerahkan (GA/IT),</p>
+            <p class="font-bold underline" id="bast-pic-name">Rian Pratama</p>
+            <p class="text-[10px] text-slate-500">PIC GA-IT</p>
+          </div>
+          <div>
+            <p class="text-slate-600 mb-12">Yang Menerima,</p>
+            <p class="font-bold underline" id="bast-recipient-name">Budi Santoso</p>
+            <p class="text-[10px] text-slate-500">Karyawan / User</p>
+          </div>
+          <div>
+            <p class="text-slate-600 mb-12">Mengetahui,</p>
+            <p class="font-bold underline">Ratna Dewi</p>
+            <p class="text-[10px] text-slate-500">HRD / Atasan Langsung</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: MUTASI / SERAH TERIMA ASET KE USER BARU -->
+  <!-- ========================================================= -->
+  <div id="modal-handover" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-right-left text-blue-600"></i> Serah Terima / Mutasi Pemegang Aset
+        </h3>
+        <button onclick="closeModal('modal-handover')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-handover" onsubmit="submitAssetHandover(event)" class="space-y-3">
+        <input type="hidden" id="handover-asset-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Aset Yang Dimutasi</label>
+          <p id="handover-asset-label" class="text-xs font-bold font-mono bg-slate-100 p-2.5 rounded border border-slate-200 text-slate-800"></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Aksi Mutasi *</label>
+          <select id="handover-action" onchange="toggleHandoverUserSelect()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium">
+            <option value="checkout">Serahkan ke Karyawan Baru (Checkout)</option>
+            <option value="checkin">Kembalikan ke Gudang IT/GA (Check-in)</option>
+          </select>
+        </div>
+
+        <div id="handover-user-group">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Karyawan Penerima *</label>
+          <select id="handover-target-user" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Kondisi Fisik Saat Serah Terima</label>
+          <select id="handover-condition" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+            <option value="Baik (Normal)">Baik (Normal)</option>
+            <option value="Ada Lecet Pemakaian">Ada Lecet Pemakaian</option>
+            <option value="Perlu Servis">Perlu Servis</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan / Alasan Mutasi</label>
+          <input id="handover-notes" type="text" placeholder="Misal: Pergantian staf marketing / promosi jabatan" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-handover')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan Mutasi & BAST</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: DETAIL ASET & TIMELINE LENGKAP -->
+  <!-- ========================================================= -->
+  <div id="modal-asset-detail" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <span id="detail-asset-code" class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200"></span>
+          <h3 id="detail-asset-name" class="font-bold text-base text-slate-900 mt-1"></h3>
+        </div>
+        <button onclick="closeModal('modal-asset-detail')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Detail Navigation Tabs -->
+      <div class="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs">
+        <button onclick="switchDetailSubTab('specs')" id="dtab-specs" class="px-3 py-1.5 font-bold rounded bg-blue-600 text-white">Spesifikasi</button>
+        <button onclick="switchDetailSubTab('handovers')" id="dtab-handovers" class="px-3 py-1.5 font-bold rounded text-slate-600 hover:bg-slate-100">Histori Pemegang</button>
+        <button onclick="switchDetailSubTab('maintenances')" id="dtab-maintenances" class="px-3 py-1.5 font-bold rounded text-slate-600 hover:bg-slate-100">Histori Servis</button>
+        <button onclick="switchDetailSubTab('logs')" id="dtab-logs" class="px-3 py-1.5 font-bold rounded text-slate-600 hover:bg-slate-100">Log Perubahan</button>
+      </div>
+
+      <!-- Tab Content 1: Specs & Aksesoris -->
+      <div id="dcontent-specs" class="space-y-4 text-xs">
+        <div>
+          <h4 class="font-bold text-slate-500 uppercase tracking-wider mb-2 text-[11px]">Spesifikasi Detail</h4>
+          <div id="detail-asset-specs" class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200"></div>
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-500 uppercase tracking-wider mb-2 text-[11px]">Aksesoris Tertaut Pada Unit Ini</h4>
+          <div id="detail-asset-accessories" class="space-y-1"></div>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Handover History -->
+      <div id="dcontent-handovers" class="hidden space-y-3 text-xs">
+        <div id="detail-handovers-list" class="space-y-2"></div>
+      </div>
+
+      <!-- Tab Content 3: Maintenance History -->
+      <div id="dcontent-maintenances" class="hidden space-y-3 text-xs">
+        <div id="detail-maintenances-list" class="space-y-2"></div>
+      </div>
+
+      <!-- Tab Content 4: Change Logs -->
+      <div id="dcontent-logs" class="hidden space-y-3 text-xs">
+        <div id="detail-logs-list" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: TAMBAH USER / AKUN BARU -->
+  <!-- ========================================================= -->
+  <div id="modal-add-user" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-blue-600"></i> Tambah Akun Pengguna Baru
+        </h3>
+        <button onclick="closeModal('modal-add-user')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-user" onsubmit="submitNewUser(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap *</label>
+          <input id="new-user-name" type="text" placeholder="Misal: Ratna Dewi" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email Login *</label>
+          <input id="new-user-email" type="email" placeholder="hrd@company.com" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi (Password) *</label>
+          <input id="new-user-password" type="password" value="password123" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Peran & Hak Akses (Role) *</label>
+          <select id="new-user-role" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-bold">
+            <option value="admin">Admin (Akses Penuh Semua Modul)</option>
+            <option value="hrd">HRD (Backup Operasional GA-IT)</option>
+            <option value="finance">Finance (Auditor / Laporan)</option>
+            <option value="it">IT Staff</option>
+            <option value="ga">GA Staff</option>
+            <option value="employee">Karyawan Biasa</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-add-user')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan Akun</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: TAMBAH KATEGORI BARU -->
+  <!-- ========================================================= -->
+  <div id="modal-add-category" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-plus text-blue-600"></i> Tambah Master Kategori
+        </h3>
+        <button onclick="closeModal('modal-add-category')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-category" onsubmit="submitNewCategory(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Domain *</label>
+          <select id="cat-domain" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-bold">
+            <option value="IT">IT (Teknologi Informasi)</option>
+            <option value="GA">GA (General Affairs / Fasilitas)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kategori *</label>
+          <input id="cat-name" type="text" placeholder="Misal: Tablet iPad / Proyektor" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kode Unik (ID) *</label>
+            <input id="cat-code" type="text" placeholder="misal: tablet" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-mono" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Prefix Tag *</label>
+            <input id="cat-prefix" type="text" placeholder="IT-TAB" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-mono font-bold" required>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-add-category')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan Kategori</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Other modals: Ticket, Consumables In/Out/New, Accessory, Maintenance -->
+  <!-- Modal: Quick Ticket -->
+  <div id="modal-ticket" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-blue-600"></i> Catat Logbook Cepat</h3>
+        <button onclick="closeModal('modal-ticket')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-ticket" onsubmit="submitTicket(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Judul Pekerjaan / Masalah *</label>
+          <input id="ticket-title" type="text" placeholder="Misal: AC Ruang Bromo Bunyi / Bantuan Setting Printer" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+            <select id="ticket-category" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+              <option value="IT_SUPPORT">IT Support</option>
+              <option value="GA_FACILITY">GA & Fasilitas</option>
+              <option value="ASSET_REQUEST">Permintaan Barang</option>
+              <option value="MAINTENANCE">Maintenance Servis</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Prioritas</label>
+            <select id="ticket-priority" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+              <option value="medium">Medium</option>
+              <option value="high">High (Tinggi)</option>
+              <option value="critical">Critical</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Pemohon (Karyawan)</label>
+            <select id="ticket-requester" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Terkait Aset</label>
+            <select id="ticket-asset" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5"><option value="">-- Tidak Terkait Aset --</option></select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Detail Tambahan</label>
+          <textarea id="ticket-desc" rows="2" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5"></textarea>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-ticket')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan Logbook</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Consumable Out -->
+  <div id="modal-consumable-out" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-arrow-up text-amber-600"></i> Pengeluaran Barang</h3>
+        <button onclick="closeModal('modal-consumable-out')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-csm-out" onsubmit="submitConsumableCheckout(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Barang *</label>
+          <select id="csm-out-item" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Diambil *</label>
+            <input id="csm-out-qty" type="number" min="1" value="1" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold" required>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Penerima *</label>
+            <input id="csm-out-recipient" type="text" placeholder="Misal: Budi" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5" required>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Keperluan</label>
+          <input id="csm-out-notes" type="text" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-consumable-out')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700">Potong Stok</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Consumable In -->
+  <div id="modal-consumable-in" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-arrow-down text-emerald-600"></i> Restock Barang Masuk</h3>
+        <button onclick="closeModal('modal-consumable-in')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-csm-in" onsubmit="submitConsumableRestock(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Barang *</label>
+          <select id="csm-in-item" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Tambahan Masuk *</label>
+          <input id="csm-in-qty" type="number" min="1" value="10" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold" required>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-consumable-in')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ Tambah Stok</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Consumable Master New -->
+  <div id="modal-consumable-new" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-box text-slate-700"></i> Master Item Baru</h3>
+        <button onclick="closeModal('modal-consumable-new')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-csm-new" onsubmit="submitNewConsumable(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Barang *</label>
+          <input id="new-csm-name" type="text" placeholder="Misal: Lakban Coklat" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+            <select id="new-csm-category" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
+              <option value="atk">ATK</option>
+              <option value="printer_supplies">Tinta/Toner</option>
+              <option value="cables">Kabel</option>
+              <option value="other">Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Satuan *</label>
+            <input id="new-csm-unit" type="text" value="pcs" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Stok Awal</label>
+            <input id="new-csm-stock" type="number" min="0" value="10" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Alert Kritis</label>
+            <input id="new-csm-min" type="number" min="1" value="5" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-bold">
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-consumable-new')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Accessory -->
+  <div id="modal-accessory" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-keyboard text-purple-600"></i> Daftarkan Aksesoris</h3>
+        <button onclick="closeModal('modal-accessory')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-acc" onsubmit="submitNewAccessory(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Aksesoris *</label>
+          <input id="acc-name" type="text" placeholder="Misal: Logitech Mouse M331" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+            <select id="acc-category" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
+              <option value="mouse">Mouse</option>
+              <option value="keyboard">Keyboard</option>
+              <option value="charger">Charger</option>
+              <option value="headset">Headset</option>
+              <option value="other">Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Serial Number</label>
+            <input id="acc-serial" type="text" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
+          </div>
+        </div>
+        <div class="bg-purple-50 p-2.5 rounded border border-purple-200">
+          <label class="block text-xs font-bold text-purple-900 mb-1"><i class="fa-solid fa-link text-purple-600"></i> Tautkan ke Laptop/Aset Utama:</label>
+          <select id="acc-link-asset" class="w-full text-xs bg-white border border-purple-300 rounded p-1.5 font-medium"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Atau Serahkan ke Karyawan Langsung</label>
+          <select id="acc-user" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5"></select>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-accessory')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-lg hover:bg-purple-700">Simpan Aksesoris</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Maintenance -->
+  <div id="modal-maintenance" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-wrench text-blue-600"></i> Catat Servis</h3>
+        <button onclick="closeModal('modal-maintenance')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-maintenance" onsubmit="submitMaintenance(event)" class="space-y-3">
+        <input type="hidden" id="maint-asset-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Aset</label>
+          <p id="maint-asset-label" class="text-xs font-bold font-mono bg-slate-100 p-2.5 rounded border border-slate-200 text-slate-800"></p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tipe Servis</label>
+            <select id="maint-type" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
+              <option value="service_berkala">Servis Berkala</option>
+              <option value="cuci_ac">Cuci AC</option>
+              <option value="perbaikan">Perbaikan Hardware</option>
+              <option value="upgrade_ram_ssd">Upgrade RAM / SSD</option>
+              <option value="ganti_oli">Ganti Oli</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal</label>
+            <input id="maint-date" type="date" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Biaya (Rp)</label>
+            <input id="maint-cost" type="number" value="0" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Vendor / Bengkel</label>
+            <input id="maint-vendor" type="text" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan</label>
+          <textarea id="maint-notes" rows="2" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5"></textarea>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-maintenance')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: BATCH HANDOVER (MUTASI MASSAL) -->
+  <!-- ========================================================= -->
+  <div id="modal-batch-handover" class="modal-overlay hidden">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-signature text-blue-600"></i> Mutasi & BAST Gabungan
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">Serah terima beberapa unit aset sekaligus dalam 1 nomor surat resmi.</p>
+        </div>
+        <button onclick="closeModal('modal-batch-handover')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Preview Selected Assets -->
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+        <div class="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+          <span>Aset yang Terpilih:</span>
+          <span id="batch-handover-selected-count" class="text-blue-600 font-mono">0 unit</span>
+        </div>
+        <div id="batch-handover-selected-list" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1"></div>
+      </div>
+
+      <form id="form-batch-handover" onsubmit="submitBatchHandover(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Tindakan *</label>
+          <select id="batch-handover-action" onchange="toggleBatchHandoverUserSelect()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold text-slate-800">
+            <option value="checkout">Check-Out: Serahkan ke Karyawan (Penggunaan Baru)</option>
+            <option value="checkin">Check-In: Tarik Kembali ke Gudang / Standby</option>
+          </select>
+        </div>
+
+        <div id="batch-handover-user-group">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Karyawan Penerima (User) *</label>
+          <select id="batch-handover-target-user" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Kondisi Perangkat Saat Serah Terima *</label>
+          <select id="batch-handover-condition" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium">
+            <option value="Baik (Normal)">Baik (Normal - Siap Pakai)</option>
+            <option value="Baru (Brand New)">Baru (Brand New Segel/Fresh)</option>
+            <option value="Ada Baret Halus">Ada Baret Halus / Pemakaian Wajar</option>
+            <option value="Perlu Servis Minor">Perlu Servis Minor</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Serah Terima / Keperluan</label>
+          <textarea id="batch-handover-notes" rows="2" placeholder="Misal: Penyerahan paket perlengkapan kerja staf onboarding baru." 
+            class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-batch-handover')" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Batal</button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-check"></i> Proses & Tampilkan BAST
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: DOKUMEN BAST GABUNGAN (COMBINED BAST) -->
+  <!-- ========================================================= -->
+  <div id="modal-batch-bast" class="modal-overlay hidden">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-contract text-blue-600"></i> Dokumen Berita Acara Serah Terima (BAST) Gabungan
+          </h3>
+          <p class="text-xs text-slate-500">Dokumen resmi serah terima multi-aset siap cetak ke printer / PDF.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="printBatchBAST()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-print"></i> Cetak Dokumen (A4)
+          </button>
+          <button onclick="closeModal('modal-batch-bast')" class="text-slate-400 hover:text-slate-700 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+      </div>
+
+      <!-- Printable BAST Gabungan Paper Content -->
+      <div id="printable-batch-bast" class="p-8 border border-slate-200 rounded-xl bg-white text-slate-900 text-xs space-y-5 font-serif">
+        <!-- Kop Surat -->
+        <div class="text-center border-b-2 border-slate-800 pb-3">
+          <h2 id="bbast-company-name" class="text-base font-bold tracking-wider uppercase">PT NUSA PERSADA UTAMA</h2>
+          <p class="text-[10px] text-slate-600 font-sans tracking-wide">DEPARTEMEN GENERAL AFFAIRS & INFORMATION TECHNOLOGY</p>
+          <p class="text-[9px] text-slate-500 font-sans">Gedung Pusat Operasional, Lantai 5 - Jakarta Pusat | Telp: (021) 555-0199</p>
+        </div>
+
+        <!-- Judul & No Surat -->
+        <div class="text-center space-y-1">
+          <h3 class="font-bold text-sm tracking-wide underline uppercase">BERITA ACARA SERAH TERIMA PERANGKAT KERJA (GABUNGAN)</h3>
+          <p id="bbast-doc-number" class="text-[11px] font-mono text-slate-700">Nomor: BAST/2026/11/BATCH-0000</p>
+        </div>
+
+        <p class="leading-relaxed text-[11px]">
+          Pada hari ini, <strong id="bbast-date-str" class="font-bold">-</strong>, telah dilaksanakan serah terima perangkat dan inventaris fasilitas operasional kantor dengan rincian para pihak sebagai berikut:
+        </p>
+
+        <!-- Para Pihak -->
+        <div class="grid grid-cols-2 gap-4 bg-slate-50 p-3.5 rounded border border-slate-200 font-sans text-[11px]">
+          <div>
+            <span class="text-slate-500 font-bold block mb-1 uppercase text-[10px]">Pihak Pertama (Yang Menyerahkan):</span>
+            <div class="font-bold text-slate-900" id="bbast-pic-name">Rian Pratama</div>
+            <div class="text-slate-600">Departemen GA & IT Support</div>
+          </div>
+          <div>
+            <span class="text-slate-500 font-bold block mb-1 uppercase text-[10px]">Pihak Kedua (Penerima):</span>
+            <div class="font-bold text-slate-900" id="bbast-recipient-name">Budi Santoso</div>
+            <div class="text-slate-600" id="bbast-recipient-role">Karyawan / Pengguna</div>
+          </div>
+        </div>
+
+        <!-- Tabel Rincian Aset -->
+        <div class="space-y-2">
+          <p class="font-bold text-[11px] font-sans">Daftar Rincian Unit / Perangkat yang Diserahterimakan:</p>
+          <table class="w-full border-collapse border border-slate-300 font-sans text-[11px]">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700 text-left">
+                <th class="border border-slate-300 px-2 py-1.5 w-8 text-center">No</th>
+                <th class="border border-slate-300 px-2 py-1.5 w-24">Tag Aset</th>
+                <th class="border border-slate-300 px-2 py-1.5">Nama & Tipe Barang</th>
+                <th class="border border-slate-300 px-2 py-1.5 w-32">Nomor Seri (SN)</th>
+                <th class="border border-slate-300 px-2 py-1.5">Spesifikasi / Aksesoris</th>
+                <th class="border border-slate-300 px-2 py-1.5 w-24 text-center">Kondisi</th>
+              </tr>
+            </thead>
+            <tbody id="bbast-items-table-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Ketentuan -->
+        <div class="space-y-1 text-[10.5px] leading-relaxed text-slate-700">
+          <p><strong>Ketentuan dan Tanggung Jawab:</strong></p>
+          <ol class="list-decimal list-inside space-y-0.5">
+            <li>Pihak Kedua bertanggung jawab penuh atas pemeliharaan dan keamanan fisik unit-unit tersebut selama masa penugasan.</li>
+            <li>Kerusakan atau kehilangan wajib segera dilaporkan ke bagian IT & GA maksimal dalam 1x24 jam kerja.</li>
+            <li>Unit wajib dikembalikan ke bagian GA/IT dalam keadaan baik apabila terjadi mutasi, rotasi, atau pengunduran diri.</li>
+          </ol>
+        </div>
+
+        <!-- Kolom Tanda Tangan 3 Pihak -->
+        <div class="grid grid-cols-3 gap-4 pt-6 text-center font-sans text-[11px]">
+          <div>
+            <p class="text-slate-600 mb-14">Yang Menyerahkan,</p>
+            <p id="bbast-sign-pic" class="font-bold underline text-slate-900">Rian Pratama</p>
+            <p class="text-[10px] text-slate-500">GA & IT Support</p>
+          </div>
+          <div>
+            <p class="text-slate-600 mb-14">Penerima,</p>
+            <p id="bbast-sign-recipient" class="font-bold underline text-slate-900">Budi Santoso</p>
+            <p class="text-[10px] text-slate-500">Pengguna Fasilitas</p>
+          </div>
+          <div>
+            <p class="text-slate-600 mb-14">Mengetahui,</p>
+            <p class="font-bold underline text-slate-900">Head of GA / IT</p>
+            <p class="text-[10px] text-slate-500">Atasan Berwenang</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL: BATCH STATUS UPDATE -->
+  <!-- ========================================================= -->
+  <div id="modal-batch-status" class="modal-overlay hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate text-amber-600"></i> Ubah Status Aset Sekaligus
+        </h3>
+        <button onclick="closeModal('modal-batch-status')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-800">
+        Anda akan mengubah status <strong id="batch-status-count" class="font-mono font-bold">0</strong> aset yang sedang dipilih secara serentak.
+      </div>
+
+      <form id="form-batch-status" onsubmit="submitBatchStatus(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Status Baru *</label>
+          <select id="batch-status-target" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold text-slate-800">
+            <option value="available">Tersedia (Kembali ke Gudang / Standby)</option>
+            <option value="assigned">Dipakai (Assigned)</option>
+            <option value="maintenance">Dalam Servis (Maintenance / Perbaikan)</option>
+            <option value="broken">Rusak / Afkir (Retired)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Perubahan (Opsional)</label>
+          <textarea id="batch-status-notes" rows="2" placeholder="Misal: Penyesuaian stok triwulan / jadwal servis berkala." class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-batch-status')" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Batal</button>
+          <button type="submit" class="px-5 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-check"></i> Simpan Status Baru
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hidden Container for Thermal Sticker Print -->
+  <div id="printable-sticker" class="hidden"></div>
+
+  <!-- ========================================================= -->
+  <!-- JAVASCRIPT APPLICATION CORE V2 -->
+  <!-- ========================================================= -->
+  <script>
+    const state = {
+      currentUser: null,
+      settings: {
+        general: { company_name: 'PT NUSA PERSADA UTAMA', app_title: 'GA & IT Operations Portal', logo_url: '' },
+        label_template: {
+          width_mm: 50,
+          height_mm: 30,
+          elements: {
+            company: { enabled: true, x: 10, y: 8 },
+            code: { enabled: true, x: 10, y: 28 },
+            qrcode: { enabled: true, x: 215, y: 12 },
+            name: { enabled: true, x: 10, y: 62 },
+            specs: { enabled: true, x: 10, y: 82 },
+            serial: { enabled: true, x: 10, y: 100 },
+            location: { enabled: false, x: 10, y: 118 }
+          }
+        }
+      },
+      categories: [],
+      users: [],
+      assets: [],
+      filteredAssets: [],
+      selectedAssetIds: new Set(),
+      accessories: [],
+      consumables: [],
+      filteredConsumables: [],
+      tickets: [],
+      filteredTickets: [],
+      stats: null,
+      currentTab: 'dashboard'
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Check local storage for session
+      const savedUser = localStorage.getItem('gait_user');
+      if (savedUser) {
+        state.currentUser = JSON.parse(savedUser);
+        updateUserUI();
+      } else {
+        openModal('modal-login');
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const mDate = document.getElementById('maint-date');
+      if (mDate) mDate.value = today;
+
+      await loadSettings();
+      await loadCategories();
+      await loadUsers();
+      await refreshAllData();
+      initDragAndDrop();
+    });
+
+    // Toast
+    function showToast(msg, isSuccess = true) {
+      const toast = document.getElementById('toast');
+      const icon = document.getElementById('toast-icon');
+      const text = document.getElementById('toast-msg');
+      text.innerText = msg;
+      icon.className = isSuccess ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-solid fa-circle-exclamation text-rose-400';
+      toast.classList.remove('-translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('-translate-y-24', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    // Auth
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Login gagal: ' + err.error);
+          return;
+        }
+        const data = await res.json();
+        state.currentUser = data.user;
+        localStorage.setItem('gait_user', JSON.stringify(data.user));
+        updateUserUI();
+        closeModal('modal-login');
+        showToast(`Selamat datang, ${state.currentUser.name}!`);
+        await refreshAllData();
+      } catch (err) {
+        alert('Gagal menghubungi server: ' + err.message);
+      }
+    }
+
+    function fillLogin(email) {
+      document.getElementById('login-email').value = email;
+      document.getElementById('login-password').value = 'admin123';
+    }
+
+    function logout() {
+      if (!confirm('Yakin ingin keluar akun?')) return;
+      state.currentUser = null;
+      localStorage.removeItem('gait_user');
+      openModal('modal-login');
+    }
+
+    function updateUserUI() {
+      if (!state.currentUser) return;
+      document.getElementById('current-user-name').innerText = state.currentUser.name;
+      document.getElementById('current-user-role').innerText = state.currentUser.role.toUpperCase();
+      document.getElementById('user-avatar-initial').innerText = state.currentUser.name.charAt(0).toUpperCase();
+
+      // Role permission UI toggling
+      const role = state.currentUser.role;
+      const settingsNav = document.getElementById('nav-settings');
+      if (role === 'finance' || role === 'employee') {
+        settingsNav.classList.add('hidden');
+      } else {
+        settingsNav.classList.remove('hidden');
+      }
+    }
+
+    // Settings
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.general) state.settings.general = data.general;
+        if (data.label_template) state.settings.label_template = data.label_template;
+
+        // Apply branding
+        const comp = state.settings.general.company_name || 'PT NUSA PERSADA UTAMA';
+        const title = state.settings.general.app_title || 'GA & IT Operations Portal';
+        const logo = state.settings.general.logo_url;
+
+        document.getElementById('brand-company-name').innerText = comp;
+        document.getElementById('brand-portal-title').innerText = title;
+        document.getElementById('top-company-badge').innerText = comp;
+        document.getElementById('canvas-company-txt').innerText = comp;
+        document.getElementById('bast-company-name').innerText = comp;
+        document.getElementById('set-company-name').value = comp;
+        document.getElementById('set-app-title').value = title;
+        document.getElementById('set-logo-url').value = logo || '';
+
+        if (logo) {
+          const img = document.getElementById('brand-logo-img');
+          img.src = logo;
+          img.classList.remove('hidden');
+          document.getElementById('brand-default-icon').classList.add('hidden');
+        }
+
+        // Apply label template
+        const tpl = state.settings.label_template;
+        document.getElementById('label-width-mm').value = tpl.width_mm || 50;
+        document.getElementById('label-height-mm').value = tpl.height_mm || 30;
+        updateLabelCanvasSize();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function saveGeneralSettings() {
+      const company_name = document.getElementById('set-company-name').value.trim();
+      const app_title = document.getElementById('set-app-title').value.trim();
+      const logo_url = document.getElementById('set-logo-url').value.trim();
+
+      try {
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: 'general',
+            value: { company_name, app_title, logo_url },
+            userName: state.currentUser?.name
+          })
+        });
+        showToast('Logo & Header berhasil disimpan!');
+        await loadSettings();
+      } catch (err) {
+        alert('Gagal menyimpan: ' + err.message);
+      }
+    }
+
+    function previewLogo() {
+      const url = document.getElementById('set-logo-url').value.trim();
+      const img = document.getElementById('brand-logo-img');
+      const icon = document.getElementById('brand-default-icon');
+      if (url) {
+        img.src = url;
+        img.classList.remove('hidden');
+        icon.classList.add('hidden');
+      } else {
+        img.classList.add('hidden');
+        icon.classList.remove('hidden');
+      }
+    }
+
+    // Categories
+    async function loadCategories() {
+      try {
+        const res = await fetch('/api/categories');
+        state.categories = await res.json();
+        renderCategoriesTable(state.categories);
+        onCategoryChange(); // Refresh asset creation form subcategories
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderCategoriesTable(items) {
+      const tbody = document.getElementById('categories-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = items.map(c => `
+        <tr>
+          <td class="td-cell font-bold ${c.domain === 'IT' ? 'text-blue-700' : 'text-emerald-700'}">${c.domain}</td>
+          <td class="td-cell font-semibold text-slate-800">${c.name}</td>
+          <td class="td-cell font-mono text-xs text-slate-600">${c.code}</td>
+          <td class="td-cell font-mono font-bold text-xs text-slate-700">${c.tag_prefix}</td>
+          <td class="td-cell text-right">
+            <button onclick="deleteCategory(${c.id})" class="text-xs text-slate-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function submitNewCategory(e) {
+      e.preventDefault();
+      const domain = document.getElementById('cat-domain').value;
+      const name = document.getElementById('cat-name').value.trim();
+      const code = document.getElementById('cat-code').value.trim();
+      const tag_prefix = document.getElementById('cat-prefix').value.trim();
+
+      try {
+        const res = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain, name, code, tag_prefix, userName: state.currentUser?.name })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast('Kategori baru ditambahkan!');
+        closeModal('modal-add-category');
+        document.getElementById('form-category').reset();
+        await loadCategories();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteCategory(id) {
+      if (!confirm('Hapus kategori ini?')) return;
+      try {
+        await fetch(`/api/categories/${id}?userName=${encodeURIComponent(state.currentUser?.name || 'Admin')}`, { method: 'DELETE' });
+        showToast('Kategori dihapus');
+        await loadCategories();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Users
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users');
+        state.users = await res.json();
+        renderUsersTable(state.users);
+        const optionsHtml = state.users.map(u => `<option value="${u.id}">${u.name} (${u.role.toUpperCase()})</option>`).join('');
+        document.getElementById('new-assigned-user').innerHTML = '<option value="">-- Belum Di-assign (Di Gudang) --</option>' + optionsHtml;
+        document.getElementById('ticket-requester').innerHTML = optionsHtml;
+        document.getElementById('acc-user').innerHTML = '<option value="">-- Tidak Terkait User --</option>' + optionsHtml;
+        document.getElementById('handover-target-user').innerHTML = optionsHtml;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderUsersTable(items) {
+      const tbody = document.getElementById('users-table-body');
+      if (!tbody) return;
+      const roleBadges = {
+        admin: 'bg-purple-50 text-purple-700 border-purple-200',
+        hrd: 'bg-amber-50 text-amber-700 border-amber-200',
+        finance: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        it: 'bg-blue-50 text-blue-700 border-blue-200',
+        ga: 'bg-teal-50 text-teal-700 border-teal-200',
+        employee: 'bg-slate-100 text-slate-700 border-slate-200'
+      };
+      tbody.innerHTML = items.map(u => `
+        <tr>
+          <td class="td-cell font-bold text-slate-900">${u.name}</td>
+          <td class="td-cell text-xs font-mono text-slate-600">${u.email}</td>
+          <td class="td-cell">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold border uppercase ${roleBadges[u.role] || 'bg-slate-100'}">${u.role}</span>
+          </td>
+          <td class="td-cell">
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">${u.is_active ? 'Aktif' : 'Non-aktif'}</span>
+          </td>
+          <td class="td-cell text-right">
+            <button onclick="deleteUser(${u.id})" class="text-xs text-slate-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function submitNewUser(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-user-name').value.trim();
+      const email = document.getElementById('new-user-email').value.trim();
+      const password = document.getElementById('new-user-password').value;
+      const role = document.getElementById('new-user-role').value;
+
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, role, userName: state.currentUser?.name })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast('Akun baru berhasil didaftarkan!');
+        closeModal('modal-add-user');
+        document.getElementById('form-user').reset();
+        await loadUsers();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Hapus user ini?')) return;
+      try {
+        await fetch(`/api/users/${id}?userName=${encodeURIComponent(state.currentUser?.name || 'Admin')}`, { method: 'DELETE' });
+        showToast('User dihapus');
+        await loadUsers();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Activity Logs
+    async function loadActivityLogs() {
+      try {
+        const res = await fetch('/api/activity-logs');
+        const logs = await res.json();
+        const tbody = document.getElementById('audit-table-body');
+        if (!tbody) return;
+        if (logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400 text-xs">Belum ada log.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = logs.map(l => `
+          <tr>
+            <td class="td-cell text-xs font-mono text-slate-500 whitespace-nowrap">${new Date(l.created_at).toLocaleString('id-ID')}</td>
+            <td class="td-cell font-semibold text-slate-900">${l.user_name}</td>
+            <td class="td-cell font-mono font-bold text-xs text-blue-700">${l.action}</td>
+            <td class="td-cell text-xs text-slate-500">${l.target_type}</td>
+            <td class="td-cell text-xs text-slate-700">${l.details}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Submenu Settings Switcher
+    function switchSettingsTab(tab) {
+      ['logo', 'users', 'categories', 'label'].forEach(t => {
+        document.getElementById(`settab-${t}`).className = 'px-4 py-2 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-200 transition';
+        document.getElementById(`settings-view-${t}`).classList.add('hidden');
+      });
+      document.getElementById(`settab-${tab}`).className = 'px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white shadow-sm transition';
+      document.getElementById(`settings-view-${tab}`).classList.remove('hidden');
+
+      if (tab === 'label') renderCanvasQR();
+    }
+
+    // ============================================================
+    // LABEL DESIGNER (DRAG & DROP + MM SIZE)
+    // ============================================================
+    function applyLabelPreset(preset) {
+      const presets = {
+        niimbot_50x30: { w: 50, h: 30 },
+        niimbot_40x30: { w: 40, h: 30 },
+        xprinter_70x40: { w: 70, h: 40 },
+        xprinter_80x50: { w: 80, h: 50 }
+      };
+      const p = presets[preset];
+      if (!p) return;
+      document.getElementById('label-width-mm').value = p.w;
+      document.getElementById('label-height-mm').value = p.h;
+      updateLabelCanvasSize();
+    }
+
+    function updateLabelCanvasSize() {
+      const w = parseInt(document.getElementById('label-width-mm').value, 10) || 50;
+      const h = parseInt(document.getElementById('label-height-mm').value, 10) || 30;
+      document.getElementById('canvas-dim-label').innerText = `${w} x ${h} mm`;
+
+      // Scale to visual canvas (approx 6.4 px per mm)
+      const canvas = document.getElementById('label-canvas');
+      canvas.style.width = `${w * 6.4}px`;
+      canvas.style.height = `${h * 6.4}px`;
+    }
+
+    function toggleLabelElement(key) {
+      const isChecked = document.getElementById(`chk-${key}`).checked;
+      const el = document.getElementById(`el-${key}`);
+      if (!el) return;
+      if (isChecked) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    }
+
+    function initDragAndDrop() {
+      const canvas = document.getElementById('label-canvas');
+      const items = canvas.querySelectorAll('.drag-item');
+
+      items.forEach(item => {
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+
+        item.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          initialLeft = item.offsetLeft;
+          initialTop = item.offsetTop;
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          item.style.left = `${Math.max(0, initialLeft + dx)}px`;
+          item.style.top = `${Math.max(0, initialTop + dy)}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+      });
+
+      renderCanvasQR();
+    }
+
+    function renderCanvasQR() {
+      const box = document.getElementById('canvas-qrcode-box');
+      if (!box) return;
+      box.innerHTML = '';
+      new QRCode(box, {
+        text: 'IT-LPT-001',
+        width: 70,
+        height: 70,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    async function saveLabelTemplate() {
+      const w = parseInt(document.getElementById('label-width-mm').value, 10);
+      const h = parseInt(document.getElementById('label-height-mm').value, 10);
+      
+      const elements = {};
+      ['company', 'code', 'qrcode', 'name', 'specs', 'serial', 'location'].forEach(key => {
+        const item = document.getElementById(`el-${key}`);
+        const chk = document.getElementById(`chk-${key}`);
+        if (item) {
+          elements[key] = {
+            enabled: chk ? chk.checked : true,
+            x: item.offsetLeft,
+            y: item.offsetTop
+          };
+        }
+      });
+
+      try {
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: 'label_template',
+            value: { width_mm: w, height_mm: h, elements },
+            userName: state.currentUser?.name
+          })
+        });
+        showToast('Template Stiker Berhasil Disimpan!');
+      } catch (err) {
+        alert('Gagal: ' + err.message);
+      }
+    }
+
+    function printSampleLabel() {
+      printStickerForAsset({
+        code: 'IT-LPT-001',
+        name: 'MacBook Pro M3 Pro 14"',
+        specs: { processor: 'Apple M3 Pro', ram: '18GB', storage: '512GB' },
+        serial_number: 'C02G90XXMD6M'
+      });
+    }
+
+    function printStickerForAsset(asset) {
+      const w = parseInt(document.getElementById('label-width-mm').value, 10) || 50;
+      const h = parseInt(document.getElementById('label-height-mm').value, 10) || 30;
+      const comp = state.settings.general.company_name || 'PT NUSA PERSADA UTAMA';
+
+      const specsText = Object.values(asset.specs || {}).slice(0, 2).join(' • ');
+
+      const container = document.getElementById('printable-sticker');
+      container.innerHTML = `
+        <style>
+          @page { size: ${w}mm ${h}mm; margin: 0; }
+          #sticker-card {
+            width: ${w}mm;
+            height: ${h}mm;
+            padding: 2mm 3mm;
+            box-sizing: border-box;
+            font-family: sans-serif;
+            position: relative;
+            overflow: hidden;
+            background: white;
+            color: black;
+          }
+        </style>
+        <div id="sticker-card">
+          <div style="font-size: 7pt; font-weight: bold; margin-bottom: 1mm;">${comp}</div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-size: 10pt; font-family: monospace; font-weight: 900; border: 1px solid black; padding: 0.5mm 1mm; display: inline-block;">${asset.code}</div>
+              <div style="font-size: 7pt; font-weight: bold; margin-top: 1mm; max-width: 32mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${asset.name}</div>
+              <div style="font-size: 6pt; font-family: monospace; margin-top: 0.5mm;">${specsText}</div>
+              <div style="font-size: 5.5pt; font-family: monospace; margin-top: 0.5mm;">SN: ${asset.serial_number || '-'}</div>
+            </div>
+            <div id="print-qr-box" style="width: 16mm; height: 16mm;"></div>
+          </div>
+        </div>
+      `;
+
+      new QRCode(container.querySelector('#print-qr-box'), {
+        text: asset.code,
+        width: 60,
+        height: 60,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      setTimeout(() => { window.print(); }, 250);
+    }
+
+    // ============================================================
+    // BAST GENERATOR (BERITA ACARA SERAH TERIMA)
+    // ============================================================
+    function openBASTModal(assetId) {
+      const a = state.assets.find(item => item.id === assetId);
+      if (!a) return;
+
+      const comp = state.settings.general.company_name || 'PT NUSA PERSADA UTAMA';
+      document.getElementById('bast-company-name').innerText = comp;
+      document.getElementById('bast-asset-code').innerText = a.code;
+      document.getElementById('bast-asset-name').innerText = a.name;
+      document.getElementById('bast-asset-serial').innerText = a.serial_number || '-';
+
+      const specsText = Object.entries(a.specs || {}).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join(', ') || '-';
+      document.getElementById('bast-asset-specs').innerText = specsText;
+
+      const accs = (a.linked_accessories || []).map(acc => acc.name).join(', ') || 'Unit Utama Tanpa Tambahan';
+      document.getElementById('bast-asset-accs').innerText = accs;
+
+      document.getElementById('bast-recipient-name').innerText = a.assigned_to_name || '(Belum Ditentukan)';
+      document.getElementById('bast-pic-name').innerText = state.currentUser?.name || 'Rian Pratama';
+
+      const now = new Date();
+      document.getElementById('bast-date-str').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('bast-doc-number').innerText = `Nomor: BAST/${now.getFullYear()}/${String(a.id).padStart(3, '0')}`;
+
+      openModal('modal-bast');
+    }
+
+    function printBAST() {
+      window.print();
+    }
+
+    // ============================================================
+    // MUTASI / SERAH TERIMA PEMEGANG
+    // ============================================================
+    function openHandoverModal(assetId, code, name) {
+      document.getElementById('handover-asset-id').value = assetId;
+      document.getElementById('handover-asset-label').innerText = `[${code}] ${name}`;
+      openModal('modal-handover');
+    }
+
+    function toggleHandoverUserSelect() {
+      const act = document.getElementById('handover-action').value;
+      const grp = document.getElementById('handover-user-group');
+      if (act === 'checkin') {
+        grp.classList.add('hidden');
+      } else {
+        grp.classList.remove('hidden');
+      }
+    }
+
+    async function submitAssetHandover(e) {
+      e.preventDefault();
+      const asset_id = document.getElementById('handover-asset-id').value;
+      const action_type = document.getElementById('handover-action').value;
+      const to_user_id = document.getElementById('handover-target-user').value || null;
+      const condition = document.getElementById('handover-condition').value;
+      const notes = document.getElementById('handover-notes').value.trim();
+
+      try {
+        const res = await fetch(`/api/assets/${asset_id}/handover`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action_type,
+            to_user_id: action_type === 'checkout' ? to_user_id : null,
+            condition,
+            notes,
+            userName: state.currentUser?.name
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+
+        const data = await res.json();
+        showToast(`Mutasi berhasil dicatat (${data.bast_number})`);
+        closeModal('modal-handover');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ============================================================
+    // ASSET DETAIL TABS CONTROLLER
+    // ============================================================
+    async function openAssetDetailModal(assetId) {
+      const asset = state.assets.find(a => a.id === assetId);
+      if (!asset) return;
+
+      document.getElementById('detail-asset-code').innerText = asset.code;
+      document.getElementById('detail-asset-name').innerText = asset.name;
+
+      // Render Specs
+      const specsContainer = document.getElementById('detail-asset-specs');
+      const specs = asset.specs || {};
+      const entries = Object.entries(specs);
+      specsContainer.innerHTML = entries.length === 0
+        ? '<span class="text-slate-400 italic col-span-2">Tidak ada spesifikasi tercatat</span>'
+        : entries.map(([k, v]) => `<div><span class="text-[10px] uppercase font-bold text-slate-400 block">${k.replace('_', ' ')}</span><span class="font-bold text-slate-800 text-xs">${v || '-'}</span></div>`).join('');
+
+      // Render Accessories
+      const accContainer = document.getElementById('detail-asset-accessories');
+      const accs = asset.linked_accessories || [];
+      accContainer.innerHTML = accs.length === 0
+        ? '<span class="text-slate-400 italic">Tidak ada aksesoris yang terpasang pada unit ini.</span>'
+        : accs.map(acc => `<div class="flex items-center justify-between p-2 rounded bg-purple-50 border border-purple-100 text-xs"><span class="font-bold text-purple-900"><i class="fa-solid fa-paperclip text-purple-500 mr-1"></i> ${acc.name}</span><span class="capitalize text-[11px] text-purple-600">${acc.category}</span></div>`).join('');
+
+      // Load History Timeline
+      try {
+        const res = await fetch(`/api/assets/${assetId}/history`);
+        const hData = await res.json();
+
+        // Handovers list
+        const hList = document.getElementById('detail-handovers-list');
+        hList.innerHTML = hData.handovers.length === 0
+          ? '<p class="text-slate-400 italic">Belum ada riwayat mutasi.</p>'
+          : hData.handovers.map(h => `
+            <div class="p-2.5 rounded bg-slate-50 border border-slate-200 text-xs">
+              <div class="flex items-center justify-between font-bold text-slate-900">
+                <span>${h.action_type === 'checkout' ? 'Diserahkan ke: ' + (h.to_user_name || 'Staff') : 'Dikembalikan ke Gudang'}</span>
+                <span class="text-[10px] font-mono text-blue-600">${h.bast_number || '-'}</span>
+              </div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Kondisi: ${h.condition} • ${new Date(h.created_at).toLocaleDateString('id-ID')}</div>
+              ${h.notes ? `<div class="text-[10px] text-slate-600 mt-1 italic">Catatan: ${h.notes}</div>` : ''}
+            </div>
+          `).join('');
+
+        // Maintenances list
+        const mList = document.getElementById('detail-maintenances-list');
+        mList.innerHTML = hData.maintenances.length === 0
+          ? '<p class="text-slate-400 italic">Belum ada riwayat servis.</p>'
+          : hData.maintenances.map(m => `
+            <div class="p-2.5 rounded bg-slate-50 border border-slate-200 text-xs">
+              <div class="flex items-center justify-between font-bold text-slate-900">
+                <span class="capitalize">${m.type.replace('_', ' ')}</span>
+                <span class="text-emerald-700 font-mono">Rp ${Number(m.cost).toLocaleString('id-ID')}</span>
+              </div>
+              <div class="text-[11px] text-slate-500">${new Date(m.maintenance_date).toLocaleDateString('id-ID')} • Vendor: ${m.vendor || '-'}</div>
+              <p class="text-slate-700 mt-1">${m.notes || '-'}</p>
+            </div>
+          `).join('');
+
+        // Logs list
+        const lList = document.getElementById('detail-logs-list');
+        lList.innerHTML = hData.logs.length === 0
+          ? '<p class="text-slate-400 italic">Tidak ada log tercatat.</p>'
+          : hData.logs.map(l => `
+            <div class="p-2 rounded bg-slate-50 border border-slate-200 text-[11px]">
+              <div class="text-slate-400 text-[10px] font-mono">${new Date(l.created_at).toLocaleString('id-ID')}</div>
+              <div class="font-bold text-slate-800">${l.user_name}: <span class="font-normal">${l.details}</span></div>
+            </div>
+          `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+
+      switchDetailSubTab('specs');
+      openModal('modal-asset-detail');
+    }
+
+    function switchDetailSubTab(tab) {
+      ['specs', 'handovers', 'maintenances', 'logs'].forEach(t => {
+        document.getElementById(`dtab-${t}`).className = 'px-3 py-1.5 font-bold rounded text-slate-600 hover:bg-slate-100';
+        document.getElementById(`dcontent-${t}`).classList.add('hidden');
+      });
+      document.getElementById(`dtab-${tab}`).className = 'px-3 py-1.5 font-bold rounded bg-blue-600 text-white';
+      document.getElementById(`dcontent-${tab}`).classList.remove('hidden');
+    }
+
+    // ============================================================
+    // GENERAL APP LOADERS & HELPERS
+    // ============================================================
+    function toggleExportMenu() {
+      document.getElementById('export-dropdown').classList.toggle('hidden');
+    }
+
+    async function refreshAllData() {
+      await Promise.all([loadStats(), loadAssets(), loadAccessories(), loadConsumables(), loadTickets()]);
+    }
+
+    // Dynamic Form Category Setup from Database
+    function onCategoryChange() {
+      const cat = document.getElementById('new-category').value;
+      const subcatSelect = document.getElementById('new-subcategory');
+      const filtered = state.categories.filter(c => c.domain === cat);
+      
+      subcatSelect.innerHTML = filtered.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+      renderDynamicSpecsForm();
+    }
+
+    function renderDynamicSpecsForm() {
+      const subcat = document.getElementById('new-subcategory').value;
+      const container = document.getElementById('dynamic-spec-container');
+
+      if (subcat === 'laptop' || subcat === 'desktop') {
+        container.innerHTML = `
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Processor</label><input id="spec-cpu" type="text" placeholder="i7 / Ryzen 7 / M3" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">RAM</label><input id="spec-ram" type="text" placeholder="16GB DDR5" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Storage</label><input id="spec-storage" type="text" placeholder="512GB SSD" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">OS</label><input id="spec-os" type="text" placeholder="Windows 11 / macOS" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+        `;
+      } else if (subcat === 'smartphone') {
+        container.innerHTML = `
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">RAM / Storage</label><input id="spec-ram-storage" type="text" placeholder="8GB / 256GB" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">IMEI</label><input id="spec-imei" type="text" placeholder="15 digit IMEI" class="w-full text-xs bg-white border border-slate-300 rounded p-2 font-mono"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">OS</label><input id="spec-os" type="text" placeholder="Android 14 / iOS 17" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Warna</label><input id="spec-extra" type="text" placeholder="Black" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+        `;
+      } else if (subcat === 'ac') {
+        container.innerHTML = `
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Kapasitas PK</label><input id="spec-pk" type="text" placeholder="1.5 PK Inverter" class="w-full text-xs bg-white border border-slate-300 rounded p-2 font-bold"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Freon</label><input id="spec-refrigerant" type="text" placeholder="R32" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Voltase</label><input id="spec-volt" type="text" value="220V" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Posisi Outdoor</label><input id="spec-outdoor" type="text" placeholder="Balkon Lt 2" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+        `;
+      } else if (subcat === 'vehicle') {
+        container.innerHTML = `
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Transmisi</label><input id="spec-transmission" type="text" placeholder="Automatic" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">BBM</label><input id="spec-fuel" type="text" placeholder="Bensin" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Tahun</label><input id="spec-year" type="text" placeholder="2024" class="w-full text-xs bg-white border border-slate-300 rounded p-2 font-mono"></div>
+          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Kapasitas</label><input id="spec-seats" type="text" placeholder="7 Seater" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+        `;
+      } else {
+        container.innerHTML = `
+          <div class="md:col-span-4"><label class="block text-xs font-semibold text-slate-700 mb-1">Keterangan Spesifikasi Bebas</label><input id="spec-general" type="text" placeholder="Rincian..." class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+        `;
+      }
+    }
+
+    async function submitNewAsset(e) {
+      e.preventDefault();
+      const category = document.getElementById('new-category').value;
+      const subcategory = document.getElementById('new-subcategory').value;
+      const code = document.getElementById('new-code').value.trim();
+      const name = document.getElementById('new-name').value.trim();
+      const serial_number = document.getElementById('new-serial').value.trim();
+      const status = document.getElementById('new-status').value;
+      const location = document.getElementById('new-location').value.trim();
+      const assigned_to_user_id = document.getElementById('new-assigned-user').value || null;
+
+      let specs = {};
+      if (subcategory === 'laptop' || subcategory === 'desktop') {
+        specs = { processor: document.getElementById('spec-cpu')?.value || '', ram: document.getElementById('spec-ram')?.value || '', storage: document.getElementById('spec-storage')?.value || '', os: document.getElementById('spec-os')?.value || '' };
+      } else if (subcategory === 'smartphone') {
+        specs = { ram_storage: document.getElementById('spec-ram-storage')?.value || '', imei: document.getElementById('spec-imei')?.value || '', os: document.getElementById('spec-os')?.value || '', extra: document.getElementById('spec-extra')?.value || '' };
+      } else if (subcategory === 'ac') {
+        specs = { capacity_pk: document.getElementById('spec-pk')?.value || '', refrigerant: document.getElementById('spec-refrigerant')?.value || '', voltage: document.getElementById('spec-volt')?.value || '', outdoor: document.getElementById('spec-outdoor')?.value || '' };
+      } else if (subcategory === 'vehicle') {
+        specs = { transmission: document.getElementById('spec-transmission')?.value || '', fuel: document.getElementById('spec-fuel')?.value || '', tahun: document.getElementById('spec-year')?.value || '', seats: document.getElementById('spec-seats')?.value || '' };
+      } else {
+        specs = { notes: document.getElementById('spec-general')?.value || '' };
+      }
+
+      try {
+        const res = await fetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code || undefined, name, category, subcategory, serial_number: serial_number || null, status, location, specs, assigned_to_user_id: assigned_to_user_id ? parseInt(assigned_to_user_id, 10) : null, userName: state.currentUser?.name })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        const data = await res.json();
+        showToast(`Aset [${data.code}] berhasil didaftarkan!`);
+        document.getElementById('form-add-asset').reset();
+        hideAddAssetScreen();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Navigation
+    function nav(tab) {
+      state.currentTab = tab;
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('text-white', 'bg-blue-600', 'shadow-sm');
+        btn.classList.add('text-slate-400');
+      });
+      const activeNav = document.getElementById(`nav-${tab}`);
+      if (activeNav) {
+        activeNav.classList.add('text-white', 'bg-blue-600', 'shadow-sm');
+        activeNav.classList.remove('text-slate-400');
+      }
+
+      ['view-dashboard', 'view-assets', 'view-add-asset', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-settings'].forEach(v => {
+        document.getElementById(v).classList.add('hidden');
+      });
+
+      const titles = {
+        dashboard: 'Dashboard Overview',
+        assets: 'Daftar Aset Utama (IT & GA)',
+        accessories: 'Aksesoris & Peripherals',
+        consumables: 'Consumables & Stok ATK',
+        logbook: 'Logbook Pekerjaan & Tiket',
+        audit: 'Audit Trail & Log Perubahan',
+        settings: 'Pengaturan Sistem'
+      };
+      document.getElementById('top-title').innerText = titles[tab] || 'Overview';
+
+      const target = document.getElementById(`view-${tab}`);
+      if (target) target.classList.remove('hidden');
+
+      if (tab === 'dashboard') loadStats();
+      if (tab === 'assets') loadAssets();
+      if (tab === 'accessories') loadAccessories();
+      if (tab === 'consumables') loadConsumables();
+      if (tab === 'logbook') loadTickets();
+      if (tab === 'audit') loadActivityLogs();
+      if (tab === 'settings') switchSettingsTab('logo');
+    }
+
+    function showAddAssetScreen() {
+      ['view-dashboard', 'view-assets', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-settings'].forEach(v => {
+        document.getElementById(v).classList.add('hidden');
+      });
+      document.getElementById('view-add-asset').classList.remove('hidden');
+      document.getElementById('top-title').innerText = 'Tambah Aset Baru';
+    }
+
+    function hideAddAssetScreen() {
+      document.getElementById('view-add-asset').classList.add('hidden');
+      nav('assets');
+    }
+
+    // Stats
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/stats');
+        state.stats = await res.json();
+        document.getElementById('dash-assets-total').innerText = state.stats.assets.total || 0;
+        document.getElementById('dash-assets-avail').innerText = `${state.stats.assets.available || 0} Tersedia`;
+        document.getElementById('dash-assets-it').innerText = state.stats.assets.it_total || 0;
+        document.getElementById('dash-assets-ga').innerText = state.stats.assets.ga_total || 0;
+        document.getElementById('dash-acc-total').innerText = state.stats.accessories.total || 0;
+        document.getElementById('dash-acc-linked').innerText = `${state.stats.accessories.linked || 0} Tertaut Laptop`;
+        document.getElementById('dash-csm-total').innerText = state.stats.consumables.total || 0;
+
+        const low = parseInt(state.stats.consumables.low_stock_count, 10);
+        const lowEl = document.getElementById('dash-csm-low');
+        lowEl.innerText = `${low} Kritis`;
+        lowEl.className = low > 0 
+          ? 'text-xs px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold border border-rose-200 animate-pulse'
+          : 'text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200';
+
+        document.getElementById('dash-ticket-open').innerText = state.stats.tickets.open_count || 0;
+        document.getElementById('dash-ticket-resolved').innerText = `${state.stats.tickets.resolved_count || 0} Selesai`;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // ============================================================
+    // ASSETS LOADER, INSTANT FILTER & MULTI-SELECT BATCH
+    // ============================================================
+    async function loadAssets() {
+      try {
+        const res = await fetch('/api/assets');
+        state.assets = await res.json();
+        onAssetFilterChange();
+        renderDashAssets(state.assets);
+        updateAssetDropdowns(state.assets);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function onAssetFilterChange() {
+      const search = (document.getElementById('asset-search')?.value || '').toLowerCase().trim();
+      const cat = document.getElementById('asset-filter-cat')?.value || '';
+      const status = document.getElementById('asset-filter-status')?.value || '';
+
+      state.filteredAssets = state.assets.filter(a => {
+        // Category check
+        if (cat && a.category !== cat) return false;
+        // Status check
+        if (status && a.status !== status) return false;
+        // Search check
+        if (search) {
+          const specsStr = Object.values(a.specs || {}).join(' ').toLowerCase();
+          const targetStr = `${a.code} ${a.name} ${a.serial_number || ''} ${a.assigned_to_name || ''} ${a.location || ''} ${specsStr}`.toLowerCase();
+          if (!targetStr.includes(search)) return false;
+        }
+        return true;
+      });
+
+      renderAssetsTable(state.filteredAssets);
+    }
+
+    function resetAssetFilters() {
+      const s = document.getElementById('asset-search');
+      const c = document.getElementById('asset-filter-cat');
+      const st = document.getElementById('asset-filter-status');
+      if (s) s.value = '';
+      if (c) c.value = '';
+      if (st) st.value = '';
+      onAssetFilterChange();
+    }
+
+    function renderAssetsTable(items) {
+      const tbody = document.getElementById('assets-table-body');
+      const counterEl = document.getElementById('assets-counter');
+      if (counterEl) {
+        counterEl.innerText = `Menampilkan ${items.length} dari ${state.assets.length} aset`;
+      }
+
+      if (!items || items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400 text-xs">Tidak ada aset yang sesuai filter pencarian.</td></tr>`;
+        updateBatchActionBar();
+        return;
+      }
+
+      // Check if all visible items are selected
+      const allSelected = items.length > 0 && items.every(a => state.selectedAssetIds.has(a.id));
+      const chkAll = document.getElementById('chk-select-all-assets');
+      if (chkAll) chkAll.checked = allSelected;
+
+      tbody.innerHTML = items.map(a => {
+        const isSelected = state.selectedAssetIds.has(a.id);
+        const specs = a.specs || {};
+        let specBadges = [];
+        if (specs.processor) specBadges.push(`<span class="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${specs.processor}</span>`);
+        if (specs.ram) specBadges.push(`<span class="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${specs.ram}</span>`);
+        if (specs.storage) specBadges.push(`<span class="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${specs.storage}</span>`);
+        if (specs.capacity_pk) specBadges.push(`<span class="inline-block bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[11px] font-semibold mr-1 mb-1">${specs.capacity_pk}</span>`);
+        if (specs.imei) specBadges.push(`<span class="inline-block bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">IMEI: ${specs.imei}</span>`);
+        const specHtml = specBadges.length > 0 ? specBadges.join('') : '<span class="text-slate-400 text-xs italic">-</span>';
+
+        const accs = a.linked_accessories || [];
+        const accHtml = accs.length > 0
+          ? accs.map(acc => `<span class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 text-[11px] px-1.5 py-0.5 rounded font-medium mr-1 mb-1"><i class="fa-solid fa-paperclip text-[9px]"></i> ${acc.name}</span>`).join('')
+          : '<span class="text-slate-400 text-xs italic">-</span>';
+
+        const statusConfig = {
+          available: { label: 'Tersedia', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          assigned: { label: 'Dipakai', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+          maintenance: { label: 'Servis', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+          broken: { label: 'Rusak / Afkir', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
+          retired: { label: 'Afkir', bg: 'bg-slate-100 text-slate-600 border-slate-200' }
+        };
+        const st = statusConfig[a.status] || { label: a.status, bg: 'bg-slate-100' };
+
+        return `
+          <tr id="asset-row-${a.id}" class="transition-colors ${isSelected ? 'bg-blue-50/70 font-medium' : ''}">
+            <td class="td-cell text-center w-10">
+              <input type="checkbox" class="asset-chk-row rounded text-blue-600 focus:ring-blue-500 cursor-pointer w-3.5 h-3.5" 
+                value="${a.id}" ${isSelected ? 'checked' : ''} onchange="onAssetRowToggle(${a.id}, this.checked)">
+            </td>
+            <td class="td-cell font-mono font-bold text-xs text-blue-700 whitespace-nowrap">
+              <span class="bg-blue-50 px-2 py-1 rounded border border-blue-200 inline-block">${a.code}</span>
+            </td>
+            <td class="td-cell">
+              <div class="font-bold text-slate-900">${a.name}</div>
+              <div class="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                <span class="font-bold">${a.category}</span> • <span class="capitalize">${a.subcategory}</span>
+                ${a.serial_number ? `• SN: <span class="font-mono text-slate-700">${a.serial_number}</span>` : ''}
+              </div>
+            </td>
+            <td class="td-cell"><div class="flex flex-wrap items-center max-w-sm">${specHtml}</div></td>
+            <td class="td-cell"><div class="flex flex-wrap items-center max-w-xs">${accHtml}</div></td>
+            <td class="td-cell whitespace-nowrap">
+              <div class="font-semibold text-slate-800 text-xs">${a.assigned_to_name || '<span class="text-slate-400 font-normal italic">Gudang / Standby</span>'}</div>
+              <div class="text-[11px] text-slate-400 mt-0.5"><i class="fa-solid fa-location-dot text-[9px]"></i> ${a.location}</div>
+            </td>
+            <td class="td-cell whitespace-nowrap">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${st.bg}">${st.label}</span>
+            </td>
+            <td class="td-cell text-right whitespace-nowrap">
+              <div class="inline-flex items-center gap-1">
+                <button onclick="printStickerForAsset(${JSON.stringify(a).replace(/"/g, '&quot;')})" title="Print Stiker" class="p-1.5 text-xs text-slate-700 hover:bg-slate-100 rounded border border-slate-200 transition">
+                  <i class="fa-solid fa-print"></i>
+                </button>
+                <button onclick="openBASTModal(${a.id})" title="Cetak BAST" class="p-1.5 text-xs text-blue-700 hover:bg-blue-50 rounded border border-blue-200 transition">
+                  <i class="fa-solid fa-file-contract"></i>
+                </button>
+                <button onclick="openHandoverModal(${a.id}, '${a.code}', '${a.name}')" title="Mutasi Pemegang" class="p-1.5 text-xs text-amber-700 hover:bg-amber-50 rounded border border-amber-200 transition">
+                  <i class="fa-solid fa-right-left"></i>
+                </button>
+                <button onclick="openAssetDetailModal(${a.id})" title="Detail Lengkap" class="p-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded border border-slate-200 transition">
+                  <i class="fa-solid fa-circle-info"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      updateBatchActionBar();
+    }
+
+    // Multi-Select Handlers
+    function toggleSelectAllAssets(checked) {
+      const items = state.filteredAssets.length > 0 ? state.filteredAssets : state.assets;
+      if (checked) {
+        items.forEach(a => state.selectedAssetIds.add(a.id));
+      } else {
+        items.forEach(a => state.selectedAssetIds.delete(a.id));
+      }
+      renderAssetsTable(items);
+    }
+
+    function onAssetRowToggle(id, checked) {
+      if (checked) {
+        state.selectedAssetIds.add(id);
+      } else {
+        state.selectedAssetIds.delete(id);
+      }
+      const row = document.getElementById(`asset-row-${id}`);
+      if (row) {
+        if (checked) row.classList.add('bg-blue-50/70', 'font-medium');
+        else row.classList.remove('bg-blue-50/70', 'font-medium');
+      }
+
+      // Check header checkbox state
+      const items = state.filteredAssets.length > 0 ? state.filteredAssets : state.assets;
+      const allSelected = items.length > 0 && items.every(a => state.selectedAssetIds.has(a.id));
+      const chkAll = document.getElementById('chk-select-all-assets');
+      if (chkAll) chkAll.checked = allSelected;
+
+      updateBatchActionBar();
+    }
+
+    function updateBatchActionBar() {
+      const bar = document.getElementById('batch-action-bar');
+      const countEl = document.getElementById('batch-count');
+      if (!bar) return;
+
+      const count = state.selectedAssetIds.size;
+      if (countEl) countEl.innerText = count;
+
+      if (count > 0) {
+        bar.classList.remove('translate-y-28', 'opacity-0', 'pointer-events-none');
+        bar.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+      } else {
+        bar.classList.add('translate-y-28', 'opacity-0', 'pointer-events-none');
+        bar.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+      }
+    }
+
+    function clearAssetSelection() {
+      state.selectedAssetIds.clear();
+      const items = state.filteredAssets.length > 0 ? state.filteredAssets : state.assets;
+      renderAssetsTable(items);
+    }
+
+    // ============================================================
+    // BATCH THERMAL STICKER PRINT (NIIMBOT B1 & XPRINTER)
+    // ============================================================
+    function printBatchStickers() {
+      const selected = state.assets.filter(a => state.selectedAssetIds.has(a.id));
+      if (selected.length === 0) {
+        alert('Pilih minimal 1 aset untuk dicetak stiker.');
+        return;
+      }
+
+      const w = parseInt(document.getElementById('label-width-mm')?.value, 10) || state.settings.label_template?.width_mm || 50;
+      const h = parseInt(document.getElementById('label-height-mm')?.value, 10) || state.settings.label_template?.height_mm || 30;
+      const comp = state.settings.general?.company_name || 'PT NUSA PERSADA UTAMA';
+
+      const container = document.getElementById('printable-sticker');
+      container.innerHTML = `
+        <style>
+          @page { size: ${w}mm ${h}mm; margin: 0; }
+          .thermal-batch-page {
+            width: ${w}mm;
+            height: ${h}mm;
+            padding: 2mm 3mm;
+            box-sizing: border-box;
+            font-family: sans-serif;
+            position: relative;
+            overflow: hidden;
+            background: white;
+            color: black;
+            page-break-after: always;
+            break-after: page;
+          }
+        </style>
+        ${selected.map((asset, idx) => {
+          const specsText = Object.values(asset.specs || {}).slice(0, 2).join(' • ');
+          return `
+            <div class="thermal-batch-page">
+              <div style="font-size: 7pt; font-weight: bold; margin-bottom: 1mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${comp}</div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-size: 10pt; font-family: monospace; font-weight: 900; border: 1px solid black; padding: 0.5mm 1mm; display: inline-block;">${asset.code}</div>
+                  <div style="font-size: 7pt; font-weight: bold; margin-top: 1mm; max-width: 32mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${asset.name}</div>
+                  <div style="font-size: 6pt; font-family: monospace; margin-top: 0.5mm; max-width: 32mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${specsText}</div>
+                  <div style="font-size: 5.5pt; font-family: monospace; margin-top: 0.5mm;">SN: ${asset.serial_number || '-'}</div>
+                </div>
+                <div id="batch-qr-box-${idx}" style="width: 16mm; height: 16mm; flex-shrink: 0;"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      `;
+
+      // Render individual QR Codes
+      selected.forEach((asset, idx) => {
+        const qrEl = container.querySelector(`#batch-qr-box-${idx}`);
+        if (qrEl) {
+          new QRCode(qrEl, {
+            text: asset.code,
+            width: 60,
+            height: 60,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+      });
+
+      showToast(`Menyiapkan ${selected.length} label thermal untuk dicetak...`);
+      setTimeout(() => { window.print(); }, 400);
+    }
+
+    // ============================================================
+    // BATCH MUTASI & COMBINED BAST
+    // ============================================================
+    function openBatchHandoverModal() {
+      const selected = state.assets.filter(a => state.selectedAssetIds.has(a.id));
+      if (selected.length === 0) {
+        alert('Pilih minimal 1 aset untuk mutasi serah terima.');
+        return;
+      }
+
+      document.getElementById('batch-handover-selected-count').innerText = `${selected.length} unit`;
+      const listEl = document.getElementById('batch-handover-selected-list');
+      listEl.innerHTML = selected.map(a => `
+        <span class="inline-flex items-center gap-1 bg-white text-slate-800 border border-slate-300 rounded px-2 py-0.5 text-xs font-mono font-semibold shadow-2xs">
+          <span class="text-blue-600 font-bold">${a.code}</span>
+          <span class="text-slate-500 font-sans font-normal truncate max-w-[120px]">${a.name}</span>
+        </span>
+      `).join('');
+
+      // Populate user dropdown
+      const optionsHtml = state.users.map(u => `<option value="${u.id}">${u.name} (${u.role.toUpperCase()})</option>`).join('');
+      document.getElementById('batch-handover-target-user').innerHTML = optionsHtml;
+
+      toggleBatchHandoverUserSelect();
+      openModal('modal-batch-handover');
+    }
+
+    function toggleBatchHandoverUserSelect() {
+      const act = document.getElementById('batch-handover-action').value;
+      const grp = document.getElementById('batch-handover-user-group');
+      if (act === 'checkin') {
+        grp.classList.add('hidden');
+      } else {
+        grp.classList.remove('hidden');
+      }
+    }
+
+    async function submitBatchHandover(e) {
+      e.preventDefault();
+      const asset_ids = Array.from(state.selectedAssetIds);
+      const action_type = document.getElementById('batch-handover-action').value;
+      const to_user_id = document.getElementById('batch-handover-target-user').value || null;
+      const condition = document.getElementById('batch-handover-condition').value;
+      const notes = document.getElementById('batch-handover-notes').value.trim();
+
+      try {
+        const res = await fetch('/api/assets/batch-handover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset_ids,
+            action_type,
+            to_user_id: action_type === 'checkout' ? to_user_id : null,
+            condition,
+            notes,
+            userName: state.currentUser?.name || 'Admin'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+
+        const data = await res.json();
+        closeModal('modal-batch-handover');
+        showToast(data.message);
+
+        // Render Combined BAST Modal
+        const selectedAssets = state.assets.filter(a => state.selectedAssetIds.has(a.id));
+        const targetUser = state.users.find(u => u.id === parseInt(to_user_id, 10));
+        openBatchBASTModal(data.bast_number, selectedAssets, targetUser, condition, action_type);
+
+        clearAssetSelection();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function openBatchBASTModal(bastNumber, assets, recipientUser, condition, actionType) {
+      const comp = state.settings.general?.company_name || 'PT NUSA PERSADA UTAMA';
+      document.getElementById('bbast-company-name').innerText = comp;
+      document.getElementById('bbast-doc-number').innerText = `Nomor: ${bastNumber}`;
+      
+      const now = new Date();
+      document.getElementById('bbast-date-str').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('bbast-pic-name').innerText = state.currentUser?.name || 'Rian Pratama';
+      document.getElementById('bbast-sign-pic').innerText = state.currentUser?.name || 'Rian Pratama';
+
+      const recipientName = actionType === 'checkin' ? 'Bagian Gudang / GA IT' : (recipientUser?.name || 'Karyawan');
+      const recipientRole = actionType === 'checkin' ? 'Petugas Gudang Inventaris' : `Divisi / ${recipientUser?.role?.toUpperCase() || 'Staf'}`;
+      document.getElementById('bbast-recipient-name').innerText = recipientName;
+      document.getElementById('bbast-recipient-role').innerText = recipientRole;
+      document.getElementById('bbast-sign-recipient').innerText = recipientName;
+
+      // Render Items Table
+      const tbody = document.getElementById('bbast-items-table-body');
+      tbody.innerHTML = assets.map((a, idx) => {
+        const specsText = Object.entries(a.specs || {}).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join(', ') || '-';
+        const accsText = (a.linked_accessories || []).map(acc => acc.name).join(', ') || 'Unit Utama Standar';
+        return `
+          <tr>
+            <td class="border border-slate-300 px-2 py-1.5 text-center font-mono">${idx + 1}</td>
+            <td class="border border-slate-300 px-2 py-1.5 font-mono font-bold text-blue-700">${a.code}</td>
+            <td class="border border-slate-300 px-2 py-1.5">
+              <div class="font-bold">${a.name}</div>
+              <div class="text-[10px] text-slate-500">${a.category} • ${a.subcategory}</div>
+            </td>
+            <td class="border border-slate-300 px-2 py-1.5 font-mono text-[10px]">${a.serial_number || '-'}</td>
+            <td class="border border-slate-300 px-2 py-1.5 text-[10px]">
+              <div>${specsText}</div>
+              <div class="text-purple-700 font-semibold mt-0.5"><i class="fa-solid fa-paperclip text-[9px]"></i> ${accsText}</div>
+            </td>
+            <td class="border border-slate-300 px-2 py-1.5 text-center font-semibold">${condition}</td>
+          </tr>
+        `;
+      }).join('');
+
+      openModal('modal-batch-bast');
+    }
+
+    function printBatchBAST() {
+      window.print();
+    }
+
+    // ============================================================
+    // BATCH STATUS UPDATE & BATCH DELETE
+    // ============================================================
+    function openBatchStatusModal() {
+      const count = state.selectedAssetIds.size;
+      if (count === 0) {
+        alert('Pilih minimal 1 aset untuk mengubah status.');
+        return;
+      }
+      document.getElementById('batch-status-count').innerText = `${count} unit`;
+      openModal('modal-batch-status');
+    }
+
+    async function submitBatchStatus(e) {
+      e.preventDefault();
+      const asset_ids = Array.from(state.selectedAssetIds);
+      const status = document.getElementById('batch-status-target').value;
+      const notes = document.getElementById('batch-status-notes').value.trim();
+
+      try {
+        const res = await fetch('/api/assets/batch-status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset_ids,
+            status,
+            notes,
+            userName: state.currentUser?.name || 'Admin'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+
+        const data = await res.json();
+        closeModal('modal-batch-status');
+        showToast(data.message);
+        clearAssetSelection();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function executeBatchDelete() {
+      const count = state.selectedAssetIds.size;
+      if (count === 0) {
+        alert('Pilih minimal 1 aset untuk dihapus.');
+        return;
+      }
+
+      if (!confirm(`YAKIN HAPUS PERMANEN ${count} ASET TERPILIH?\nTindakan ini tidak dapat dibatalkan.`)) return;
+
+      try {
+        const res = await fetch('/api/assets/batch-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset_ids: Array.from(state.selectedAssetIds),
+            userName: state.currentUser?.name || 'Admin'
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+
+        const data = await res.json();
+        showToast(data.message);
+        clearAssetSelection();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function renderDashAssets(items) {
+      const tbody = document.getElementById('dash-recent-assets');
+      if (!tbody) return;
+      tbody.innerHTML = items.slice(0, 5).map(a => `
+        <tr>
+          <td class="td-cell font-mono font-bold text-xs text-blue-600">${a.code}</td>
+          <td class="td-cell font-semibold text-slate-900">${a.name}</td>
+          <td class="td-cell text-xs capitalize text-slate-500">${a.subcategory}</td>
+          <td class="td-cell text-xs text-slate-700">${a.assigned_to_name || 'Gudang'}</td>
+          <td class="td-cell text-xs"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${a.status === 'available' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}">${a.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateAssetDropdowns(items) {
+      const options = '<option value="">-- Tidak Ditautkan ke Aset --</option>' + items.map(a => `<option value="${a.id}">[${a.code}] ${a.name}</option>`).join('');
+      const accSelect = document.getElementById('acc-link-asset');
+      if (accSelect) accSelect.innerHTML = options;
+      const ticketSelect = document.getElementById('ticket-asset');
+      if (ticketSelect) ticketSelect.innerHTML = '<option value="">-- Tidak Terkait Aset --</option>' + items.map(a => `<option value="${a.id}">[${a.code}] ${a.name}</option>`).join('');
+    }
+
+    // Accessories
+    async function loadAccessories() {
+      try {
+        const res = await fetch('/api/accessories');
+        state.accessories = await res.json();
+        const tbody = document.getElementById('accessories-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = state.accessories.map(acc => `
+          <tr>
+            <td class="td-cell font-bold text-slate-900">${acc.name}</td>
+            <td class="td-cell capitalize text-xs text-slate-600">${acc.category}</td>
+            <td class="td-cell font-mono text-xs text-slate-500">${acc.serial_number || '-'}</td>
+            <td class="td-cell">${acc.linked_asset_id ? `<span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold"><i class="fa-solid fa-laptop text-purple-500 mr-1"></i> ${acc.linked_asset_code} - ${acc.linked_asset_name}</span>` : '<span class="text-slate-400 italic text-xs">Standby Gudang</span>'}</td>
+            <td class="td-cell text-xs text-slate-700">${acc.assigned_to_name || '-'}</td>
+            <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold ${acc.status === 'assigned' ? 'bg-purple-50 text-purple-700' : 'bg-emerald-50 text-emerald-700'}">${acc.status}</span></td>
+            <td class="td-cell text-right"><button onclick="deleteAccessory(${acc.id})" class="text-xs text-slate-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function submitNewAccessory(e) {
+      e.preventDefault();
+      const name = document.getElementById('acc-name').value.trim();
+      const category = document.getElementById('acc-category').value;
+      const serial_number = document.getElementById('acc-serial').value.trim();
+      const linked_asset_id = document.getElementById('acc-link-asset').value || null;
+      const assigned_to_user_id = document.getElementById('acc-user').value || null;
+
+      try {
+        await fetch('/api/accessories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, category, serial_number: serial_number || null, status: (linked_asset_id || assigned_to_user_id) ? 'assigned' : 'available', linked_asset_id: linked_asset_id ? parseInt(linked_asset_id, 10) : null, assigned_to_user_id: assigned_to_user_id ? parseInt(assigned_to_user_id, 10) : null, userName: state.currentUser?.name })
+        });
+        showToast('Aksesoris berhasil didaftarkan!');
+        closeModal('modal-accessory');
+        document.getElementById('form-acc').reset();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteAccessory(id) {
+      if (!confirm('Hapus aksesoris ini?')) return;
+      try {
+        await fetch(`/api/accessories/${id}?userName=${encodeURIComponent(state.currentUser?.name || 'Admin')}`, { method: 'DELETE' });
+        showToast('Aksesoris dihapus');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ============================================================
+    // CONSUMABLES (ATK) LOADER & INSTANT FILTER
+    // ============================================================
+    async function loadConsumables() {
+      try {
+        const res = await fetch('/api/consumables');
+        state.consumables = await res.json();
+        onConsumableFilterChange();
+
+        // Dropdowns & Dash alerts
+        const opts = state.consumables.map(c => `<option value="${c.id}">[Sisa: ${c.current_stock} ${c.unit}] ${c.name}</option>`).join('');
+        const cOut = document.getElementById('csm-out-item');
+        const cIn = document.getElementById('csm-in-item');
+        if (cOut) cOut.innerHTML = opts;
+        if (cIn) cIn.innerHTML = opts;
+
+        const lowBox = document.getElementById('dash-low-stock-list');
+        if (lowBox) {
+          const lowItems = state.consumables.filter(c => c.current_stock <= c.min_stock_alert);
+          lowBox.innerHTML = lowItems.length === 0 ? '<p class="text-slate-400 italic text-xs">Semua stok aman.</p>' : lowItems.map(c => `
+            <div class="flex items-center justify-between p-2 rounded bg-amber-50 border border-amber-200 text-xs">
+              <span class="font-bold text-slate-900">${c.name}</span>
+              <span class="font-extrabold text-rose-600">${c.current_stock} ${c.unit}</span>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function onConsumableFilterChange() {
+      const search = (document.getElementById('consumable-search')?.value || '').toLowerCase().trim();
+      const cat = document.getElementById('consumable-filter-cat')?.value || '';
+      const status = document.getElementById('consumable-filter-status')?.value || '';
+
+      state.filteredConsumables = state.consumables.filter(c => {
+        if (cat && c.category !== cat) return false;
+        if (status === 'low' && c.current_stock > c.min_stock_alert) return false;
+        if (status === 'safe' && c.current_stock <= c.min_stock_alert) return false;
+        if (search) {
+          const target = `${c.name} ${c.category} ${c.unit}`.toLowerCase();
+          if (!target.includes(search)) return false;
+        }
+        return true;
+      });
+
+      renderConsumablesTable(state.filteredConsumables);
+    }
+
+    function resetConsumableFilters() {
+      const s = document.getElementById('consumable-search');
+      const c = document.getElementById('consumable-filter-cat');
+      const st = document.getElementById('consumable-filter-status');
+      if (s) s.value = '';
+      if (c) c.value = '';
+      if (st) st.value = '';
+      onConsumableFilterChange();
+    }
+
+    function renderConsumablesTable(items) {
+      const tbody = document.getElementById('consumables-table-body');
+      const counterEl = document.getElementById('consumables-counter');
+      if (counterEl) {
+        counterEl.innerText = `Menampilkan ${items.length} dari ${state.consumables.length} barang`;
+      }
+      if (!tbody) return;
+      if (!items || items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400 text-xs">Tidak ada barang yang sesuai filter.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = items.map(c => {
+        const isLow = c.current_stock <= c.min_stock_alert;
+        return `
+          <tr>
+            <td class="td-cell font-bold text-slate-900">${c.name}</td>
+            <td class="td-cell capitalize text-xs text-slate-600">${c.category.replace('_', ' ')}</td>
+            <td class="td-cell"><span class="text-base font-extrabold ${isLow ? 'text-rose-600' : 'text-slate-900'}">${c.current_stock}</span> <span class="text-xs text-slate-500">${c.unit}</span></td>
+            <td class="td-cell text-xs text-slate-500 font-mono">${c.min_stock_alert} ${c.unit}</td>
+            <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold ${isLow ? 'bg-rose-50 text-rose-700 border border-rose-200 animate-pulse' : 'bg-emerald-50 text-emerald-700'}">${isLow ? 'Kritis' : 'Aman'}</span></td>
+            <td class="td-cell text-right whitespace-nowrap">
+              <button onclick="quickConsumableOut(${c.id})" class="px-2.5 py-1 text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 rounded border border-amber-200 mr-1 transition"><i class="fa-solid fa-arrow-up"></i> Pakai</button>
+              <button onclick="quickConsumableIn(${c.id})" class="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-200 transition"><i class="fa-solid fa-arrow-down"></i> Restock</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function quickConsumableOut(id) { document.getElementById('csm-out-item').value = id; openModal('modal-consumable-out'); }
+    function quickConsumableIn(id) { document.getElementById('csm-in-item').value = id; openModal('modal-consumable-in'); }
+
+    async function submitConsumableCheckout(e) {
+      e.preventDefault();
+      const id = document.getElementById('csm-out-item').value;
+      const quantity = document.getElementById('csm-out-qty').value;
+      const recipient_name = document.getElementById('csm-out-recipient').value.trim();
+      const notes = document.getElementById('csm-out-notes').value.trim();
+      try {
+        await fetch(`/api/consumables/${id}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity, recipient_name, notes, userName: state.currentUser?.name })
+        });
+        showToast('Stok berhasil dikeluarkan');
+        closeModal('modal-consumable-out');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function submitConsumableRestock(e) {
+      e.preventDefault();
+      const id = document.getElementById('csm-in-item').value;
+      const quantity = document.getElementById('csm-in-qty').value;
+      try {
+        await fetch(`/api/consumables/${id}/restock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity, userName: state.currentUser?.name })
+        });
+        showToast('Restock berhasil');
+        closeModal('modal-consumable-in');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function submitNewConsumable(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-csm-name').value.trim();
+      const category = document.getElementById('new-csm-category').value;
+      const unit = document.getElementById('new-csm-unit').value.trim();
+      const current_stock = document.getElementById('new-csm-stock').value;
+      const min_stock_alert = document.getElementById('new-csm-min').value;
+      try {
+        await fetch('/api/consumables', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, category, unit, current_stock, min_stock_alert, userName: state.currentUser?.name })
+        });
+        showToast('Item master baru disimpan');
+        closeModal('modal-consumable-new');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ============================================================
+    // TICKETS (LOGBOOK) LOADER & INSTANT FILTER
+    // ============================================================
+    async function loadTickets() {
+      try {
+        const res = await fetch('/api/tickets');
+        state.tickets = await res.json();
+        onTicketFilterChange();
+
+        // Dash open tickets
+        const openBox = document.getElementById('dash-open-tickets-list');
+        if (openBox) {
+          const openItems = state.tickets.filter(t => t.status === 'open' || t.status === 'in_progress');
+          openBox.innerHTML = openItems.length === 0 ? '<p class="text-slate-400 italic text-xs">Semua tiket selesai.</p>' : openItems.slice(0, 4).map(t => `
+            <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-200 text-xs">
+              <div><div class="font-bold text-slate-900">${t.title}</div><div class="text-[10px] text-slate-500 font-mono">${t.ticket_no}</div></div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${t.status === 'open' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}">${t.status}</span>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function onTicketFilterChange() {
+      const search = (document.getElementById('ticket-search')?.value || '').toLowerCase().trim();
+      const status = document.getElementById('ticket-filter-status')?.value || '';
+      const priority = document.getElementById('ticket-filter-priority')?.value || '';
+
+      state.filteredTickets = state.tickets.filter(t => {
+        if (status && t.status !== status) return false;
+        if (priority && t.priority !== priority) return false;
+        if (search) {
+          const target = `${t.ticket_no} ${t.title} ${t.description || ''} ${t.requester_name || ''} ${t.category} ${t.related_asset_code || ''}`.toLowerCase();
+          if (!target.includes(search)) return false;
+        }
+        return true;
+      });
+
+      renderTicketsTable(state.filteredTickets);
+    }
+
+    function resetTicketFilters() {
+      const s = document.getElementById('ticket-search');
+      const st = document.getElementById('ticket-filter-status');
+      const pr = document.getElementById('ticket-filter-priority');
+      if (s) s.value = '';
+      if (st) st.value = '';
+      if (pr) pr.value = '';
+      onTicketFilterChange();
+    }
+
+    function renderTicketsTable(items) {
+      const tbody = document.getElementById('tickets-table-body');
+      const counterEl = document.getElementById('ticket-counter');
+      if (counterEl) {
+        counterEl.innerText = `Menampilkan ${items.length} dari ${state.tickets.length} tiket`;
+      }
+      if (!tbody) return;
+      if (!items || items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400 text-xs">Tidak ada tiket yang sesuai filter.</td></tr>`;
+        return;
+      }
+
+      const statusMap = {
+        open: '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Open</span>',
+        in_progress: '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">In Progress</span>',
+        resolved: '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Resolved</span>',
+        closed: '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">Closed</span>'
+      };
+
+      tbody.innerHTML = items.map(t => `
+        <tr>
+          <td class="td-cell font-mono font-bold text-xs text-slate-700 whitespace-nowrap">${t.ticket_no}</td>
+          <td class="td-cell">
+            <div class="font-bold text-slate-900">${t.title}</div>
+            <div class="text-xs text-slate-500 mt-0.5">${t.description || ''}</div>
+            ${t.resolution_note ? `<div class="text-[11px] text-emerald-800 font-medium mt-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">Solusi: ${t.resolution_note}</div>` : ''}
+          </td>
+          <td class="td-cell text-xs"><div class="font-semibold text-slate-800">${t.category}</div><div class="text-[10px] text-slate-500 capitalize">Prioritas: ${t.priority}</div></td>
+          <td class="td-cell text-xs font-semibold text-slate-800">${t.requester_name || '-'}</td>
+          <td class="td-cell">${t.related_asset_id ? `<span class="bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs px-1.5 py-0.5 rounded"><i class="fa-solid fa-link text-[10px] mr-1"></i>${t.related_asset_code}</span>` : '-'}</td>
+          <td class="td-cell whitespace-nowrap">${statusMap[t.status] || t.status}</td>
+          <td class="td-cell text-right whitespace-nowrap">
+            ${t.status !== 'resolved' && t.status !== 'closed' ? `<button onclick="updateTicketStatus(${t.id}, 'resolved')" class="px-2.5 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded transition">Selesai</button>` : '<span class="text-xs text-emerald-600 font-semibold"><i class="fa-solid fa-check"></i> Selesai</span>'}
+            <button onclick="deleteTicket(${t.id})" class="text-xs text-slate-400 hover:text-rose-600 p-1 ml-1 transition" title="Hapus Tiket"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function submitTicket(e) {
+      e.preventDefault();
+      const title = document.getElementById('ticket-title').value.trim();
+      const category = document.getElementById('ticket-category').value;
+      const priority = document.getElementById('ticket-priority').value;
+      const requester_id = document.getElementById('ticket-requester').value || null;
+      const related_asset_id = document.getElementById('ticket-asset').value || null;
+      const description = document.getElementById('ticket-desc').value.trim();
+
+      try {
+        await fetch('/api/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, category, priority, requester_id: requester_id ? parseInt(requester_id, 10) : null, related_asset_id: related_asset_id ? parseInt(related_asset_id, 10) : null, description, userName: state.currentUser?.name })
+        });
+        showToast('Tiket logbook disimpan');
+        closeModal('modal-ticket');
+        document.getElementById('form-ticket').reset();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function updateTicketStatus(id, newStatus) {
+      let resolution_note = '';
+      if (newStatus === 'resolved') {
+        resolution_note = prompt('Catatan penyelesaian pekerjaan:', 'Pekerjaan telah selesai diperiksa dan diperbaiki.');
+        if (resolution_note === null) return;
+      }
+      try {
+        await fetch(`/api/tickets/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, resolution_note, userName: state.currentUser?.name })
+        });
+        showToast('Status tiket diupdate');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteTicket(id) {
+      if (!confirm('Hapus tiket ini?')) return;
+      try {
+        await fetch(`/api/tickets/${id}?userName=${encodeURIComponent(state.currentUser?.name || 'Admin')}`, { method: 'DELETE' });
+        showToast('Tiket dihapus');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Maintenance
+    function openMaintenanceModal(assetId, code, name) {
+      document.getElementById('maint-asset-id').value = assetId;
+      document.getElementById('maint-asset-label').innerText = `[${code}] ${name}`;
+      openModal('modal-maintenance');
+    }
+
+    async function submitMaintenance(e) {
+      e.preventDefault();
+      const asset_id = document.getElementById('maint-asset-id').value;
+      const type = document.getElementById('maint-type').value;
+      const maintenance_date = document.getElementById('maint-date').value;
+      const cost = document.getElementById('maint-cost').value;
+      const vendor = document.getElementById('maint-vendor').value.trim();
+      const notes = document.getElementById('maint-notes').value.trim();
+      try {
+        await fetch(`/api/assets/${asset_id}/maintenances`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, maintenance_date, cost, vendor, notes, userName: state.currentUser?.name })
+        });
+        showToast('Riwayat servis dicatat');
+        closeModal('modal-maintenance');
+        document.getElementById('form-maintenance').reset();
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>
