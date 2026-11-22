@@ -464,6 +464,99 @@ app.post('/api/assets/batch-delete', async (req, res) => {
   }
 });
 
+// Batch Import Aset (Excel / CSV)
+app.post('/api/assets/batch-import', async (req, res) => {
+  const { assets = [], overwriteExisting = false, userName } = req.body;
+  if (!Array.isArray(assets) || assets.length === 0) {
+    return res.status(400).json({ error: 'Data aset untuk diimpor tidak boleh kosong' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const imported = [];
+    const skipped = [];
+    const updated = [];
+
+    for (const item of assets) {
+      if (!item.name || !item.name.trim()) continue;
+      let finalCode = (item.code || '').trim();
+      if (!finalCode) {
+        const prefix = (item.category || 'IT').toUpperCase() === 'IT' ? 'IT-AST' : 'GA-AST';
+        finalCode = `${prefix}-${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 90 + 10)}`;
+      }
+
+      // Check existence
+      const exist = await client.query('SELECT id, code FROM assets WHERE LOWER(code) = LOWER($1)', [finalCode]);
+      if (exist.rows.length > 0) {
+        if (!overwriteExisting) {
+          skipped.push({ code: finalCode, name: item.name, reason: 'Kode aset sudah terdaftar' });
+          continue;
+        } else {
+          // Update existing
+          const existingId = exist.rows[0].id;
+          await client.query(
+            `UPDATE assets SET name = $1, category = $2, subcategory = $3, serial_number = $4, status = $5, location = $6, specs = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8`,
+            [
+              item.name.trim(),
+              item.category || 'IT',
+              item.subcategory || 'other',
+              item.serial_number || null,
+              item.status || 'available',
+              item.location || 'Head Office',
+              JSON.stringify(item.specs || {}),
+              existingId
+            ]
+          );
+          updated.push(finalCode);
+          continue;
+        }
+      }
+
+      // Insert new
+      const ins = await client.query(
+        `INSERT INTO assets (code, name, category, subcategory, serial_number, status, location, specs, assigned_to_user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, code, name`,
+        [
+          finalCode,
+          item.name.trim(),
+          item.category || 'IT',
+          item.subcategory || 'other',
+          item.serial_number || null,
+          item.status || 'available',
+          item.location || 'Head Office',
+          JSON.stringify(item.specs || {}),
+          item.assigned_to_user_id || null
+        ]
+      );
+      imported.push(ins.rows[0]);
+    }
+
+    await client.query('COMMIT');
+    await logActivity(
+      userName || 'Admin',
+      'IMPORT_EXCEL_ASSETS',
+      'ASSET',
+      null,
+      `Import ${imported.length} aset baru${updated.length ? `, update ${updated.length} aset` : ''}${skipped.length ? `, lewati ${skipped.length} duplikasi` : ''}`
+    );
+
+    res.json({
+      message: `Impor selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diupdate` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
+      total: assets.length,
+      importedCount: imported.length,
+      updatedCount: updated.length,
+      skippedCount: skipped.length,
+      skipped
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Serah Terima Aset (Handover / Mutasi Pemegang)
 app.post('/api/assets/:id/handover', async (req, res) => {
   const { id } = req.params;
@@ -654,6 +747,130 @@ app.post('/api/consumables', async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// BATCH OPERATIONS FOR CONSUMABLES (MULTI-LINE)
+// ============================================================
+
+// Batch Master Consumables (Multi-line Input Master Baru)
+app.post('/api/consumables/batch-create', async (req, res) => {
+  const { items = [], userName } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Daftar barang tidak boleh kosong' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const created = [];
+    for (const it of items) {
+      if (!it.name || !it.name.trim()) continue;
+      const result = await client.query(
+        `INSERT INTO consumables (name, category, unit, current_stock, min_stock_alert)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [it.name.trim(), it.category || 'atk', it.unit || 'pcs', parseInt(it.current_stock, 10) || 0, parseInt(it.min_stock_alert, 10) || 5]
+      );
+      created.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    await logActivity(userName || 'Admin', 'BATCH_CREATE_CONSUMABLE', 'CONSUMABLE', null, `Menambahkan ${created.length} master barang ATK baru`);
+    res.status(201).json({ message: `${created.length} master barang ATK berhasil disimpan`, count: created.length, items: created });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Batch Restock (Penerimaan Stok Multi-line dari Nota)
+app.post('/api/consumables/batch-restock', async (req, res) => {
+  const { items = [], notes, userName } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Daftar item restock tidak boleh kosong' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const restocked = [];
+    for (const it of items) {
+      const cid = parseInt(it.consumable_id, 10);
+      const qty = parseInt(it.quantity, 10);
+      if (!cid || !qty || qty <= 0) continue;
+
+      const upd = await client.query(
+        `UPDATE consumables SET current_stock = current_stock + $1 WHERE id = $2 RETURNING name, current_stock`,
+        [qty, cid]
+      );
+      if (upd.rows.length > 0) {
+        restocked.push({ id: cid, name: upd.rows[0].name, added: qty, new_stock: upd.rows[0].current_stock });
+      }
+    }
+    await client.query('COMMIT');
+    await logActivity(userName || 'Admin', 'BATCH_RESTOCK_CONSUMABLE', 'CONSUMABLE', null, `Restock ${restocked.length} item ATK. ${notes ? `Catatan: ${notes}` : ''}`);
+    res.json({ message: `Restock ${restocked.length} barang berhasil dicatat`, count: restocked.length, items: restocked });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Batch Checkout (Pengeluaran Stok Multi-line / Bon Permintaan)
+app.post('/api/consumables/batch-checkout', async (req, res) => {
+  const { items = [], recipient_name, notes, userName } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Daftar barang keluar tidak boleh kosong' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // 1. Validasi kecukupan stok semua item terlebih dahulu
+    for (const it of items) {
+      const cid = parseInt(it.consumable_id, 10);
+      const qty = parseInt(it.quantity, 10);
+      if (!cid || !qty || qty <= 0) continue;
+
+      const cur = await client.query('SELECT name, current_stock, unit FROM consumables WHERE id = $1 FOR UPDATE', [cid]);
+      if (cur.rows.length === 0) throw new Error(`Barang ID ${cid} tidak ditemukan`);
+      const itemData = cur.rows[0];
+      if (itemData.current_stock < qty) {
+        throw new Error(`Stok "${itemData.name}" tidak cukup (Sisa: ${itemData.current_stock} ${itemData.unit}, Diminta: ${qty})`);
+      }
+    }
+
+    // 2. Eksekusi pengurangan stok & pencatatan log checkout
+    const checkedOut = [];
+    for (const it of items) {
+      const cid = parseInt(it.consumable_id, 10);
+      const qty = parseInt(it.quantity, 10);
+      if (!cid || !qty || qty <= 0) continue;
+
+      const upd = await client.query(
+        `UPDATE consumables SET current_stock = current_stock - $1 WHERE id = $2 RETURNING name, current_stock, unit`,
+        [qty, cid]
+      );
+      await client.query(
+        `INSERT INTO consumable_checkouts (consumable_id, recipient_name, quantity, notes)
+         VALUES ($1, $2, $3, $4)`,
+        [cid, recipient_name || 'Karyawan', qty, notes || null]
+      );
+      checkedOut.push({ id: cid, name: upd.rows[0].name, quantity: qty, remaining: upd.rows[0].current_stock });
+    }
+
+    await client.query('COMMIT');
+    await logActivity(userName || 'Admin', 'BATCH_CHECKOUT_CONSUMABLE', 'CONSUMABLE', null, `Pengeluaran ${checkedOut.length} jenis ATK untuk ${recipient_name || 'Karyawan'}`);
+    res.json({ message: `Pengeluaran ${checkedOut.length} jenis barang berhasil dicatat`, count: checkedOut.length, items: checkedOut });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

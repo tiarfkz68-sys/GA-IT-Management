@@ -7,10 +7,29 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    
+    /* Page & Element Animations */
+    @keyframes pageEntrance {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-animate {
+      animation: pageEntrance 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes rollUpNumber {
+      0% { transform: translateY(60%); opacity: 0; filter: blur(2px); }
+      100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+    }
+    .roll-animate {
+      display: inline-block;
+      animation: rollUpNumber 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
     
     .th-cell {
       padding: 10px 14px;
@@ -136,9 +155,14 @@
   </div>
 
   <!-- ========================================================= -->
+  <!-- MOBILE SIDEBAR BACKDROP -->
+  <!-- ========================================================= -->
+  <div id="sidebar-backdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 hidden transition-opacity"></div>
+
+  <!-- ========================================================= -->
   <!-- SIDEBAR NAVIGATION -->
   <!-- ========================================================= -->
-  <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 z-30 select-none">
+  <aside id="app-sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between flex-shrink-0 z-50 select-none fixed inset-y-0 left-0 -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none">
     <div>
       <!-- Brand Logo / Header -->
       <div class="h-16 px-5 flex items-center gap-3 border-b border-slate-800 bg-slate-950/40">
@@ -146,10 +170,13 @@
           <i class="fa-solid fa-server text-sm" id="brand-default-icon"></i>
           <img id="brand-logo-img" class="w-full h-full object-contain hidden" alt="Logo">
         </div>
-        <div class="truncate">
+        <div class="truncate flex-1">
           <div class="text-sm font-bold text-white tracking-wide leading-none truncate" id="brand-company-name">GA-IT OPS</div>
           <div class="text-[11px] text-slate-400 font-normal mt-0.5 truncate" id="brand-portal-title">Management Workbench</div>
         </div>
+        <button onclick="toggleMobileSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1 text-base ml-auto" title="Tutup Menu">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
 
       <!-- User Session Info -->
@@ -223,10 +250,13 @@
   <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
 
     <!-- Top Header Bar -->
-    <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20 flex-shrink-0">
-      <div class="flex items-center gap-3">
-        <h1 id="top-title" class="text-lg font-bold text-slate-900 leading-none">Dashboard Overview</h1>
-        <span id="top-company-badge" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium border border-slate-200">PT NUSA PERSADA UTAMA</span>
+    <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-20 flex-shrink-0">
+      <div class="flex items-center gap-2.5">
+        <button id="btn-mobile-menu" onclick="toggleMobileSidebar()" class="md:hidden text-slate-600 hover:text-slate-900 p-2 -ml-2 text-lg rounded-lg hover:bg-slate-100 transition" title="Toggle Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <h1 id="top-title" class="text-base md:text-lg font-bold text-slate-900 leading-none truncate max-w-[150px] sm:max-w-none">Dashboard Overview</h1>
+        <span id="top-company-badge" class="hidden sm:inline-block text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium border border-slate-200 truncate max-w-[180px]">PT NUSA PERSADA UTAMA</span>
       </div>
 
       <!-- Quick Action Buttons -->
@@ -395,9 +425,17 @@
             <span id="assets-counter" class="text-xs font-semibold text-slate-500 ml-auto whitespace-nowrap">Menampilkan 0 aset</span>
           </div>
 
-          <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
-            <i class="fa-solid fa-plus"></i> + Tambah Aset Baru
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="downloadAssetExcelTemplate()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition" title="Unduh format spreadsheet">
+              <i class="fa-solid fa-file-excel text-emerald-600"></i> Unduh Template
+            </button>
+            <button onclick="openModal('modal-import-assets')" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-file-import"></i> Import Excel
+            </button>
+            <button onclick="showAddAssetScreen()" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-plus"></i> + Tambah Aset Baru
+            </button>
+          </div>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -1330,104 +1368,243 @@
     </div>
   </div>
 
-  <!-- Modal: Consumable Out -->
+  <!-- Modal: Import Assets Excel -->
+  <div id="modal-import-assets" class="modal-overlay hidden">
+    <div class="bg-white rounded-xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i> Import Data Aset dari Excel
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">Unggah file spreadsheet (.xlsx, .xls, .csv) untuk pendaftaran aset secara massal.</p>
+        </div>
+        <button onclick="closeModal('modal-import-assets')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="space-y-4 overflow-y-auto flex-1 pr-1">
+        <!-- Download Template Info Box -->
+        <div class="flex flex-wrap items-center justify-between gap-2 p-3 bg-emerald-50/60 border border-emerald-200 rounded-lg text-xs">
+          <div class="flex items-center gap-2 text-emerald-800">
+            <i class="fa-solid fa-circle-info text-emerald-600 text-sm"></i>
+            <span>Format kolom: <b>Kode_Aset, Nama_Barang, Divisi, Kategori, Nomor_Seri, Lokasi, Status, Processor, RAM, Storage, Spek_Tambahan</b></span>
+          </div>
+          <button type="button" onclick="downloadAssetExcelTemplate()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded shadow-sm whitespace-nowrap transition">
+            <i class="fa-solid fa-download"></i> Unduh Template
+          </button>
+        </div>
+
+        <!-- File Upload Area -->
+        <div class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-6 text-center transition bg-slate-50/50 cursor-pointer" onclick="document.getElementById('excel-file-input').click()">
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleAssetExcelFileInput(event)">
+          <div class="space-y-2">
+            <i class="fa-solid fa-cloud-arrow-up text-3xl text-emerald-600"></i>
+            <div id="excel-upload-label" class="text-xs font-semibold text-slate-700">Klik untuk memilih file Excel atau seret file ke sini</div>
+            <div class="text-[11px] text-slate-400">Mendukung format .xlsx, .xls, dan .csv</div>
+          </div>
+        </div>
+
+        <!-- Duplicate Handling Option -->
+        <div class="flex items-center gap-2 px-1 text-xs text-slate-700">
+          <input type="checkbox" id="chk-skip-duplicates" checked class="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+          <label for="chk-skip-duplicates" class="cursor-pointer font-medium">Lewati baris jika <b>Kode Aset</b> sudah terdaftar di sistem (Skip Duplicates)</label>
+        </div>
+
+        <!-- Preview Box -->
+        <div id="import-preview-container" class="hidden space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span id="import-preview-count" class="font-bold text-slate-800">Pratinjau Data (0 Baris)</span>
+            <span class="text-slate-500 text-[11px]">Hanya menampilkan hingga 10 baris pertama</span>
+          </div>
+          <div class="border border-slate-200 rounded-lg overflow-x-auto max-h-56">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0">
+                <tr>
+                  <th class="p-2 border-b">Tag</th>
+                  <th class="p-2 border-b">Nama Barang</th>
+                  <th class="p-2 border-b">Divisi</th>
+                  <th class="p-2 border-b">Kategori</th>
+                  <th class="p-2 border-b">No Seri</th>
+                  <th class="p-2 border-b">Lokasi</th>
+                  <th class="p-2 border-b">Spesifikasi</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0">
+        <button type="button" onclick="closeModal('modal-import-assets')" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Batal</button>
+        <button id="btn-submit-import" type="button" onclick="submitAssetExcelImport()" disabled class="px-5 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-2">
+          <i class="fa-solid fa-check"></i> Proses Import (<span id="btn-import-count">0</span>)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Consumable Out (Multi-Line Checkout) -->
   <div id="modal-consumable-out" class="modal-overlay hidden">
-    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-arrow-up text-amber-600"></i> Pengeluaran Barang</h3>
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-up text-amber-600"></i> Pengeluaran Barang / ATK (Multi-Baris)
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">Input bon pengambilan sekaligus untuk banyak barang dalam satu nota.</p>
+        </div>
         <button onclick="closeModal('modal-consumable-out')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form id="form-csm-out" onsubmit="submitConsumableCheckout(event)" class="space-y-3">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Barang *</label>
-          <select id="csm-out-item" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required></select>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
+      <form id="form-csm-out" onsubmit="submitConsumableCheckout(event)" class="space-y-4 overflow-y-auto flex-1 pr-1 flex flex-col">
+        <!-- Header Info -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 flex-shrink-0">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Diambil *</label>
-            <input id="csm-out-qty" type="number" min="1" value="1" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold" required>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Penerima / Pemohon *</label>
+            <input id="csm-out-recipient" type="text" placeholder="Misal: Budi / Tim Finance" class="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium" required>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Penerima *</label>
-            <input id="csm-out-recipient" type="text" placeholder="Misal: Budi" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5" required>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Keperluan / Keterangan</label>
+            <input id="csm-out-notes" type="text" placeholder="Misal: Kebutuhan cetak invoice bulanan" class="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium">
           </div>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Keperluan</label>
-          <input id="csm-out-notes" type="text" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5">
+
+        <!-- Multi-line rows table -->
+        <div class="space-y-2 flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">Daftar Barang yang Dikeluarkan</span>
+            <button type="button" onclick="addConsumableCheckoutRow()" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-md transition">
+              <i class="fa-solid fa-plus"></i> Tambah Baris
+            </button>
+          </div>
+          <div class="border border-slate-200 rounded-lg overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-100 text-slate-700">
+                <tr>
+                  <th class="p-2 border-b w-8 text-center">#</th>
+                  <th class="p-2 border-b min-w-[200px]">Pilih Barang (Stok Tersedia) *</th>
+                  <th class="p-2 border-b w-28 text-center">Sisa Stok</th>
+                  <th class="p-2 border-b w-28">Jumlah *</th>
+                  <th class="p-2 border-b w-12 text-center">Hapus</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-csm-out-rows" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" onclick="closeModal('modal-consumable-out')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
-          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700">Potong Stok</button>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0">
+          <span id="csm-out-row-counter" class="text-xs text-slate-500 font-medium">1 barang</span>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeModal('modal-consumable-out')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Batal</button>
+            <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-amber-600 text-white rounded-lg hover:bg-amber-700 shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-arrow-up"></i> Potong Stok
+            </button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal: Consumable In -->
+  <!-- Modal: Consumable In (Multi-Line Restock) -->
   <div id="modal-consumable-in" class="modal-overlay hidden">
-    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-arrow-down text-emerald-600"></i> Restock Barang Masuk</h3>
+    <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-down text-emerald-600"></i> Restock / Penerimaan Barang (Multi-Baris)
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">Catat penerimaan beberapa barang sekaligus dari supplier atau PO.</p>
+        </div>
         <button onclick="closeModal('modal-consumable-in')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form id="form-csm-in" onsubmit="submitConsumableRestock(event)" class="space-y-3">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Barang *</label>
-          <select id="csm-in-item" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-medium" required></select>
+      <form id="form-csm-in" onsubmit="submitConsumableRestock(event)" class="space-y-4 overflow-y-auto flex-1 pr-1 flex flex-col">
+        <!-- Optional Note/PO -->
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex-shrink-0">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Catatan Penerimaan / No. PO / Supplier (Opsional)</label>
+          <input id="csm-in-notes" type="text" placeholder="Misal: PO-2026-088 Supplier Toko ATK Jaya" class="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium">
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Jumlah Tambahan Masuk *</label>
-          <input id="csm-in-qty" type="number" min="1" value="10" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-bold" required>
+
+        <!-- Multi-line rows table -->
+        <div class="space-y-2 flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">Daftar Barang Masuk</span>
+            <button type="button" onclick="addConsumableRestockRow()" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md transition">
+              <i class="fa-solid fa-plus"></i> Tambah Baris
+            </button>
+          </div>
+          <div class="border border-slate-200 rounded-lg overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-100 text-slate-700">
+                <tr>
+                  <th class="p-2 border-b w-8 text-center">#</th>
+                  <th class="p-2 border-b min-w-[200px]">Pilih Barang *</th>
+                  <th class="p-2 border-b w-28 text-center">Stok Saat Ini</th>
+                  <th class="p-2 border-b w-28">Jumlah Masuk *</th>
+                  <th class="p-2 border-b w-12 text-center">Hapus</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-csm-in-rows" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" onclick="closeModal('modal-consumable-in')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
-          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">+ Tambah Stok</button>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0">
+          <span id="csm-in-row-counter" class="text-xs text-slate-500 font-medium">1 barang</span>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeModal('modal-consumable-in')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Batal</button>
+            <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-plus"></i> Tambah Stok
+            </button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal: Consumable Master New -->
+  <!-- Modal: Consumable Master New (Multi-Line) -->
   <div id="modal-consumable-new" class="modal-overlay hidden">
-    <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2"><i class="fa-solid fa-box text-slate-700"></i> Master Item Baru</h3>
+    <div class="bg-white rounded-xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-box text-slate-700"></i> Pendaftaran Master ATK Baru (Multi-Baris)
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">Daftarkan satu atau banyak item master barang habis pakai sekaligus.</p>
+        </div>
         <button onclick="closeModal('modal-consumable-new')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form id="form-csm-new" onsubmit="submitNewConsumable(event)" class="space-y-3">
-        <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Barang *</label>
-          <input id="new-csm-name" type="text" placeholder="Misal: Lakban Coklat" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
+      <form id="form-csm-new" onsubmit="submitNewConsumable(event)" class="space-y-4 overflow-y-auto flex-1 pr-1 flex flex-col">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">Daftar Item Baru</span>
+          <button type="button" onclick="addConsumableMasterRow()" class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-md transition">
+            <i class="fa-solid fa-plus"></i> Tambah Baris
+          </button>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
-            <select id="new-csm-category" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5">
-              <option value="atk">ATK</option>
-              <option value="printer_supplies">Tinta/Toner</option>
-              <option value="cables">Kabel</option>
-              <option value="other">Lainnya</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Satuan *</label>
-            <input id="new-csm-unit" type="text" value="pcs" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-medium" required>
-          </div>
+        <div class="border border-slate-200 rounded-lg overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-100 text-slate-700">
+              <tr>
+                <th class="p-2 border-b w-8 text-center">#</th>
+                <th class="p-2 border-b min-w-[180px]">Nama Barang *</th>
+                <th class="p-2 border-b w-32">Kategori</th>
+                <th class="p-2 border-b w-24">Satuan *</th>
+                <th class="p-2 border-b w-24">Stok Awal</th>
+                <th class="p-2 border-b w-24">Min Alert</th>
+                <th class="p-2 border-b w-12 text-center">Hapus</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-csm-new-rows" class="divide-y divide-slate-100"></tbody>
+          </table>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Stok Awal</label>
-            <input id="new-csm-stock" type="number" min="0" value="10" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-bold">
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100 flex-shrink-0">
+          <span id="csm-new-row-counter" class="text-xs text-slate-500 font-medium">1 item</span>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="closeModal('modal-consumable-new')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Batal</button>
+            <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-black shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-check"></i> Simpan Semua Item
+            </button>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Alert Kritis</label>
-            <input id="new-csm-min" type="number" min="1" value="5" class="w-full text-xs bg-slate-50 border border-slate-300 rounded p-2.5 font-bold">
-          </div>
-        </div>
-        <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" onclick="closeModal('modal-consumable-new')" class="px-3.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg">Batal</button>
-          <button type="submit" class="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg">Simpan</button>
         </div>
       </form>
     </div>
@@ -1812,8 +1989,17 @@
       }, 3500);
     }
 
-    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function openModal(id) {
+      if (id === 'modal-consumable-new') initConsumableMasterRows();
+      if (id === 'modal-consumable-in') initConsumableRestockRows();
+      if (id === 'modal-consumable-out') initConsumableCheckoutRows();
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('hidden');
+    }
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
 
     // Auth
     async function handleLogin(e) {
@@ -2588,9 +2774,58 @@
       }
     }
 
+    // Mobile Drawer Toggle
+    function toggleMobileSidebar(open) {
+      const sidebar = document.getElementById('app-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (!sidebar || !backdrop) return;
+      const isOpen = !sidebar.classList.contains('-translate-x-full');
+      const shouldOpen = open !== undefined ? open : !isOpen;
+      if (shouldOpen) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+    function closeMobileSidebar() {
+      toggleMobileSidebar(false);
+    }
+
+    // Number Rolling Counter Animation (Odometer effect)
+    function animateRollingCounter(id, targetVal, duration = 650) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const end = parseInt(targetVal, 10) || 0;
+      el.classList.remove('roll-animate');
+      void el.offsetWidth;
+      el.classList.add('roll-animate');
+      if (end === 0) {
+        el.innerText = '0';
+        return;
+      }
+      const startTime = performance.now();
+      function frame(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        const current = Math.floor(end * ease);
+        el.innerText = current.toLocaleString('id-ID');
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          el.innerText = end.toLocaleString('id-ID');
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
     // Navigation
     function nav(tab) {
       state.currentTab = tab;
+      closeMobileSidebar();
+
       document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('text-white', 'bg-blue-600', 'shadow-sm');
         btn.classList.add('text-slate-400');
@@ -2602,7 +2837,8 @@
       }
 
       ['view-dashboard', 'view-assets', 'view-add-asset', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-settings'].forEach(v => {
-        document.getElementById(v).classList.add('hidden');
+        const el = document.getElementById(v);
+        if (el) el.classList.add('hidden');
       });
 
       const titles = {
@@ -2617,7 +2853,11 @@
       document.getElementById('top-title').innerText = titles[tab] || 'Overview';
 
       const target = document.getElementById(`view-${tab}`);
-      if (target) target.classList.remove('hidden');
+      if (target) {
+        target.classList.remove('hidden', 'page-animate');
+        void target.offsetWidth;
+        target.classList.add('page-animate');
+      }
 
       if (tab === 'dashboard') loadStats();
       if (tab === 'assets') loadAssets();
@@ -2629,10 +2869,17 @@
     }
 
     function showAddAssetScreen() {
+      closeMobileSidebar();
       ['view-dashboard', 'view-assets', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-settings'].forEach(v => {
-        document.getElementById(v).classList.add('hidden');
+        const el = document.getElementById(v);
+        if (el) el.classList.add('hidden');
       });
-      document.getElementById('view-add-asset').classList.remove('hidden');
+      const target = document.getElementById('view-add-asset');
+      if (target) {
+        target.classList.remove('hidden', 'page-animate');
+        void target.offsetWidth;
+        target.classList.add('page-animate');
+      }
       document.getElementById('top-title').innerText = 'Tambah Aset Baru';
     }
 
@@ -2646,13 +2893,13 @@
       try {
         const res = await fetch('/api/stats');
         state.stats = await res.json();
-        document.getElementById('dash-assets-total').innerText = state.stats.assets.total || 0;
+        animateRollingCounter('dash-assets-total', state.stats.assets.total || 0);
         document.getElementById('dash-assets-avail').innerText = `${state.stats.assets.available || 0} Tersedia`;
         document.getElementById('dash-assets-it').innerText = state.stats.assets.it_total || 0;
         document.getElementById('dash-assets-ga').innerText = state.stats.assets.ga_total || 0;
-        document.getElementById('dash-acc-total').innerText = state.stats.accessories.total || 0;
+        animateRollingCounter('dash-acc-total', state.stats.accessories.total || 0);
         document.getElementById('dash-acc-linked').innerText = `${state.stats.accessories.linked || 0} Tertaut Laptop`;
-        document.getElementById('dash-csm-total').innerText = state.stats.consumables.total || 0;
+        animateRollingCounter('dash-csm-total', state.stats.consumables.total || 0);
 
         const low = parseInt(state.stats.consumables.low_stock_count, 10);
         const lowEl = document.getElementById('dash-csm-low');
@@ -2661,7 +2908,7 @@
           ? 'text-xs px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold border border-rose-200 animate-pulse'
           : 'text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200';
 
-        document.getElementById('dash-ticket-open').innerText = state.stats.tickets.open_count || 0;
+        animateRollingCounter('dash-ticket-open', state.stats.tickets.open_count || 0);
         document.getElementById('dash-ticket-resolved').innerText = `${state.stats.tickets.resolved_count || 0} Selesai`;
       } catch (err) {
         console.error(err);
@@ -3308,40 +3555,356 @@
       }).join('');
     }
 
-    function quickConsumableOut(id) { document.getElementById('csm-out-item').value = id; openModal('modal-consumable-out'); }
-    function quickConsumableIn(id) { document.getElementById('csm-in-item').value = id; openModal('modal-consumable-in'); }
+    // ============================================================
+    // EXCEL IMPORT & TEMPLATE GENERATOR FOR ASSETS
+    // ============================================================
+    let stagedImportAssets = [];
 
-    async function submitConsumableCheckout(e) {
-      e.preventDefault();
-      const id = document.getElementById('csm-out-item').value;
-      const quantity = document.getElementById('csm-out-qty').value;
-      const recipient_name = document.getElementById('csm-out-recipient').value.trim();
-      const notes = document.getElementById('csm-out-notes').value.trim();
+    function downloadAssetExcelTemplate() {
+      const templateData = [
+        {
+          Kode_Aset: "AST-IT-2026-001",
+          Nama_Barang: "Laptop Dell Latitude 5420",
+          Divisi: "IT",
+          Kategori: "laptop",
+          Nomor_Seri: "SN-DELL-8821",
+          Lokasi: "Gudang IT Lantai 2",
+          Status: "available",
+          Processor: "Intel Core i5-1135G7",
+          RAM: "16GB DDR4",
+          Storage: "512GB NVMe SSD",
+          Spek_Tambahan: "Layar 14 inch FHD, Charger Original"
+        },
+        {
+          Kode_Aset: "AST-GA-2026-002",
+          Nama_Barang: "Kursi Ergonomis Ergotec",
+          Divisi: "GA",
+          Kategori: "furniture",
+          Nomor_Seri: "SN-CHAIR-001",
+          Lokasi: "Ruang Meeting A",
+          Status: "available",
+          Processor: "",
+          RAM: "",
+          Storage: "",
+          Spek_Tambahan: "Mesh breathable warna hitam, armrest adjustable"
+        }
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      ws['!cols'] = [
+        { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 14 },
+        { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 22 },
+        { wch: 14 }, { wch: 18 }, { wch: 32 }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Template_Aset");
+      XLSX.writeFile(wb, "Template_Import_Aset_GA_IT.xlsx");
+      showToast("Template Excel berhasil diunduh");
+    }
+
+    function handleAssetExcelFileInput(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      document.getElementById('excel-upload-label').innerText = `File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[firstSheet];
+          const rows = XLSX.utils.sheet_to_json(sheet);
+
+          if (!rows || rows.length === 0) {
+            alert("File Excel kosong atau format tidak sesuai!");
+            return;
+          }
+
+          stagedImportAssets = rows.map(r => ({
+            asset_tag: (r.Kode_Aset || r.Tag_Aset || r.asset_tag || r.Asset_Tag || '').toString().trim(),
+            name: (r.Nama_Barang || r.Nama || r.name || r.Name || '').toString().trim(),
+            division: (r.Divisi || r.division || 'IT').toString().trim().toUpperCase(),
+            category: (r.Kategori || r.category || 'other').toString().trim().toLowerCase(),
+            serial_number: (r.Nomor_Seri || r.Serial_Number || r.serial_number || '').toString().trim(),
+            location: (r.Lokasi || r.location || 'Gudang').toString().trim(),
+            status: (r.Status || r.status || 'available').toString().trim().toLowerCase(),
+            specs: {
+              processor: (r.Processor || r.processor || '').toString().trim(),
+              ram: (r.RAM || r.ram || '').toString().trim(),
+              storage: (r.Storage || r.storage || '').toString().trim(),
+              notes: (r.Spek_Tambahan || r.notes || r.Catatan || '').toString().trim()
+            }
+          })).filter(a => a.name);
+
+          renderAssetImportPreview(stagedImportAssets);
+        } catch (err) {
+          alert("Gagal membaca file Excel: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderAssetImportPreview(assets) {
+      const container = document.getElementById('import-preview-container');
+      const tbody = document.getElementById('import-preview-tbody');
+      const countEl = document.getElementById('import-preview-count');
+      const btnSubmit = document.getElementById('btn-submit-import');
+      const btnCount = document.getElementById('btn-import-count');
+
+      if (!assets || assets.length === 0) {
+        container.classList.add('hidden');
+        btnSubmit.disabled = true;
+        btnCount.innerText = '0';
+        return;
+      }
+
+      container.classList.remove('hidden');
+      countEl.innerText = `Pratinjau Data (${assets.length} Baris Siap Diimpor)`;
+      btnCount.innerText = assets.length;
+      btnSubmit.disabled = false;
+
+      const previewRows = assets.slice(0, 10);
+      tbody.innerHTML = previewRows.map(a => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-2 font-mono font-bold text-blue-600">${a.asset_tag || '<span class="text-slate-400 italic">Auto-gen</span>'}</td>
+          <td class="p-2 font-medium text-slate-900">${a.name}</td>
+          <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${a.division === 'IT' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}">${a.division}</span></td>
+          <td class="p-2 capitalize">${a.category}</td>
+          <td class="p-2 font-mono text-[11px] text-slate-500">${a.serial_number || '-'}</td>
+          <td class="p-2 text-slate-600">${a.location}</td>
+          <td class="p-2 text-[11px] text-slate-500">${[a.specs.processor, a.specs.ram, a.specs.storage].filter(Boolean).join(' • ') || a.specs.notes || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function submitAssetExcelImport() {
+      if (!stagedImportAssets || stagedImportAssets.length === 0) {
+        alert("Tidak ada data aset untuk diimpor!");
+        return;
+      }
+
+      const skipDuplicates = document.getElementById('chk-skip-duplicates').checked;
+      const btn = document.getElementById('btn-submit-import');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengimpor...';
+
       try {
-        await fetch(`/api/consumables/${id}/checkout`, {
+        const res = await fetch('/api/assets/batch-import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quantity, recipient_name, notes, userName: state.currentUser?.name })
+          body: JSON.stringify({
+            assets: stagedImportAssets,
+            skipDuplicates,
+            userName: state.currentUser?.name
+          })
         });
-        showToast('Stok berhasil dikeluarkan');
-        closeModal('modal-consumable-out');
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal mengimpor aset');
+
+        showToast(data.message || `Berhasil mengimpor ${data.importedCount} aset`);
+        closeModal('modal-import-assets');
+        stagedImportAssets = [];
+        document.getElementById('excel-file-input').value = '';
+        document.getElementById('excel-upload-label').innerText = 'Klik untuk memilih file Excel atau seret file ke sini';
+        document.getElementById('import-preview-container').classList.add('hidden');
+        await refreshAllData();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Proses Import (<span id="btn-import-count">0</span>)';
+      }
+    }
+
+    // ============================================================
+    // CONSUMABLES DYNAMIC MULTI-LINE FORM SYSTEM
+    // ============================================================
+    function getConsumableOptionsHtml(selectedId = null) {
+      if (!state.consumables || state.consumables.length === 0) {
+        return '<option value="">(Belum ada data barang)</option>';
+      }
+      return state.consumables.map(c => `
+        <option value="${c.id}" data-stock="${c.current_stock}" data-unit="${c.unit}" ${c.id == selectedId ? 'selected' : ''}>
+          ${c.name} [Stok: ${c.current_stock} ${c.unit}]
+        </option>
+      `).join('');
+    }
+
+    function updateConsumableRowCounter(elementId, count, label) {
+      const el = document.getElementById(elementId);
+      if (el) el.innerText = `${count} ${label}`;
+    }
+
+    // 1. Consumable Master (Batch Create)
+    function initConsumableMasterRows() {
+      const tbody = document.getElementById('tbody-csm-new-rows');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      addConsumableMasterRow();
+    }
+
+    function addConsumableMasterRow() {
+      const tbody = document.getElementById('tbody-csm-new-rows');
+      if (!tbody) return;
+      const rowIdx = tbody.children.length + 1;
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 csm-new-row';
+      tr.innerHTML = `
+        <td class="p-2 text-center text-slate-400 font-mono text-[11px] row-num">${rowIdx}</td>
+        <td class="p-2"><input type="text" class="csm-name w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-medium" placeholder="Nama ATK / Barang" required></td>
+        <td class="p-2">
+          <select class="csm-cat w-full text-xs bg-white border border-slate-300 rounded p-1.5">
+            <option value="atk">ATK</option>
+            <option value="printer_supplies">Tinta/Toner</option>
+            <option value="cables">Kabel</option>
+            <option value="other">Lainnya</option>
+          </select>
+        </td>
+        <td class="p-2"><input type="text" class="csm-unit w-full text-xs bg-white border border-slate-300 rounded p-1.5" value="pcs" required></td>
+        <td class="p-2"><input type="number" class="csm-stock w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-bold" min="0" value="10"></td>
+        <td class="p-2"><input type="number" class="csm-min w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-bold" min="1" value="5"></td>
+        <td class="p-2 text-center">
+          <button type="button" onclick="removeConsumableMasterRow(this)" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      updateConsumableRowCounter('csm-new-row-counter', tbody.children.length, 'item');
+    }
+
+    function removeConsumableMasterRow(btn) {
+      const tbody = document.getElementById('tbody-csm-new-rows');
+      if (tbody.children.length <= 1) {
+        showToast('Minimal harus ada 1 baris item', false);
+        return;
+      }
+      btn.closest('tr').remove();
+      Array.from(tbody.children).forEach((tr, idx) => tr.querySelector('.row-num').innerText = idx + 1);
+      updateConsumableRowCounter('csm-new-row-counter', tbody.children.length, 'item');
+    }
+
+    async function submitNewConsumable(e) {
+      e.preventDefault();
+      const rows = document.querySelectorAll('#tbody-csm-new-rows .csm-new-row');
+      const items = [];
+      rows.forEach(r => {
+        const name = r.querySelector('.csm-name').value.trim();
+        const category = r.querySelector('.csm-cat').value;
+        const unit = r.querySelector('.csm-unit').value.trim() || 'pcs';
+        const current_stock = parseInt(r.querySelector('.csm-stock').value, 10) || 0;
+        const min_stock_alert = parseInt(r.querySelector('.csm-min').value, 10) || 5;
+        if (name) {
+          items.push({ name, category, unit, current_stock, min_stock_alert });
+        }
+      });
+
+      if (items.length === 0) {
+        alert('Mohon isi minimal 1 nama barang!');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/consumables/batch-create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items, userName: state.currentUser?.name })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal menyimpan master item');
+        showToast(data.message || `Berhasil mendaftarkan ${data.count} master item`);
+        closeModal('modal-consumable-new');
         await refreshAllData();
       } catch (err) {
         alert(err.message);
       }
     }
 
+    // 2. Consumable Restock (Batch Restock)
+    function initConsumableRestockRows(preselectedId = null) {
+      const tbody = document.getElementById('tbody-csm-in-rows');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      addConsumableRestockRow(preselectedId);
+      const noteEl = document.getElementById('csm-in-notes');
+      if (noteEl) noteEl.value = '';
+    }
+
+    function addConsumableRestockRow(preselectedId = null) {
+      const tbody = document.getElementById('tbody-csm-in-rows');
+      if (!tbody) return;
+      const rowIdx = tbody.children.length + 1;
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 csm-in-row';
+      tr.innerHTML = `
+        <td class="p-2 text-center text-slate-400 font-mono text-[11px] row-num">${rowIdx}</td>
+        <td class="p-2">
+          <select class="csm-in-select w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-medium" onchange="onConsumableRestockSelectChange(this)" required>
+            ${getConsumableOptionsHtml(preselectedId)}
+          </select>
+        </td>
+        <td class="p-2 text-center">
+          <span class="csm-in-current-stock px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700">0</span>
+        </td>
+        <td class="p-2">
+          <input type="number" class="csm-in-qty w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-bold" min="1" value="10" required>
+        </td>
+        <td class="p-2 text-center">
+          <button type="button" onclick="removeConsumableRestockRow(this)" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      const sel = tr.querySelector('.csm-in-select');
+      onConsumableRestockSelectChange(sel);
+      updateConsumableRowCounter('csm-in-row-counter', tbody.children.length, 'barang');
+    }
+
+    function onConsumableRestockSelectChange(sel) {
+      const opt = sel.options[sel.selectedIndex];
+      const stock = opt ? opt.getAttribute('data-stock') || '0' : '0';
+      const unit = opt ? opt.getAttribute('data-unit') || '' : '';
+      const badge = sel.closest('tr').querySelector('.csm-in-current-stock');
+      if (badge) badge.innerText = `${stock} ${unit}`;
+    }
+
+    function removeConsumableRestockRow(btn) {
+      const tbody = document.getElementById('tbody-csm-in-rows');
+      if (tbody.children.length <= 1) {
+        showToast('Minimal harus ada 1 baris barang', false);
+        return;
+      }
+      btn.closest('tr').remove();
+      Array.from(tbody.children).forEach((tr, idx) => tr.querySelector('.row-num').innerText = idx + 1);
+      updateConsumableRowCounter('csm-in-row-counter', tbody.children.length, 'barang');
+    }
+
     async function submitConsumableRestock(e) {
       e.preventDefault();
-      const id = document.getElementById('csm-in-item').value;
-      const quantity = document.getElementById('csm-in-qty').value;
+      const rows = document.querySelectorAll('#tbody-csm-in-rows .csm-in-row');
+      const items = [];
+      rows.forEach(r => {
+        const id = parseInt(r.querySelector('.csm-in-select').value, 10);
+        const quantity = parseInt(r.querySelector('.csm-in-qty').value, 10) || 0;
+        if (id && quantity > 0) {
+          items.push({ id, quantity });
+        }
+      });
+
+      if (items.length === 0) {
+        alert('Mohon pilih barang dan jumlah masuk!');
+        return;
+      }
+
+      const notes = document.getElementById('csm-in-notes').value.trim();
       try {
-        await fetch(`/api/consumables/${id}/restock`, {
+        const res = await fetch('/api/consumables/batch-restock', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quantity, userName: state.currentUser?.name })
+          body: JSON.stringify({ items, notes, userName: state.currentUser?.name })
         });
-        showToast('Restock berhasil');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal memproses restock');
+        showToast(data.message || `Berhasil restock ${data.count} barang`);
         closeModal('modal-consumable-in');
         await refreshAllData();
       } catch (err) {
@@ -3349,25 +3912,140 @@
       }
     }
 
-    async function submitNewConsumable(e) {
+    function quickConsumableIn(id) {
+      initConsumableRestockRows(id);
+      openModal('modal-consumable-in');
+    }
+
+    // 3. Consumable Checkout (Batch Checkout / Voucher)
+    function initConsumableCheckoutRows(preselectedId = null) {
+      const tbody = document.getElementById('tbody-csm-out-rows');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      addConsumableCheckoutRow(preselectedId);
+      const recipientEl = document.getElementById('csm-out-recipient');
+      if (recipientEl) recipientEl.value = '';
+      const notesEl = document.getElementById('csm-out-notes');
+      if (notesEl) notesEl.value = '';
+    }
+
+    function addConsumableCheckoutRow(preselectedId = null) {
+      const tbody = document.getElementById('tbody-csm-out-rows');
+      if (!tbody) return;
+      const rowIdx = tbody.children.length + 1;
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 csm-out-row';
+      tr.innerHTML = `
+        <td class="p-2 text-center text-slate-400 font-mono text-[11px] row-num">${rowIdx}</td>
+        <td class="p-2">
+          <select class="csm-out-select w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-medium" onchange="onConsumableCheckoutSelectChange(this)" required>
+            ${getConsumableOptionsHtml(preselectedId)}
+          </select>
+        </td>
+        <td class="p-2 text-center">
+          <span class="csm-out-current-stock px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700">0</span>
+        </td>
+        <td class="p-2">
+          <input type="number" class="csm-out-qty w-full text-xs bg-white border border-slate-300 rounded p-1.5 font-bold" min="1" value="1" required>
+        </td>
+        <td class="p-2 text-center">
+          <button type="button" onclick="removeConsumableCheckoutRow(this)" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      const sel = tr.querySelector('.csm-out-select');
+      onConsumableCheckoutSelectChange(sel);
+      updateConsumableRowCounter('csm-out-row-counter', tbody.children.length, 'barang');
+    }
+
+    function onConsumableCheckoutSelectChange(sel) {
+      const opt = sel.options[sel.selectedIndex];
+      const stock = opt ? parseInt(opt.getAttribute('data-stock'), 10) || 0 : 0;
+      const unit = opt ? opt.getAttribute('data-unit') || '' : '';
+      const badge = sel.closest('tr').querySelector('.csm-out-current-stock');
+      const qtyInput = sel.closest('tr').querySelector('.csm-out-qty');
+      if (badge) {
+        badge.innerText = `${stock} ${unit}`;
+        badge.className = stock <= 0 
+          ? 'csm-out-current-stock px-2 py-0.5 rounded text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200' 
+          : 'csm-out-current-stock px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700';
+      }
+      if (qtyInput) {
+        qtyInput.max = stock > 0 ? stock : 1;
+      }
+    }
+
+    function removeConsumableCheckoutRow(btn) {
+      const tbody = document.getElementById('tbody-csm-out-rows');
+      if (tbody.children.length <= 1) {
+        showToast('Minimal harus ada 1 baris barang', false);
+        return;
+      }
+      btn.closest('tr').remove();
+      Array.from(tbody.children).forEach((tr, idx) => tr.querySelector('.row-num').innerText = idx + 1);
+      updateConsumableRowCounter('csm-out-row-counter', tbody.children.length, 'barang');
+    }
+
+    async function submitConsumableCheckout(e) {
       e.preventDefault();
-      const name = document.getElementById('new-csm-name').value.trim();
-      const category = document.getElementById('new-csm-category').value;
-      const unit = document.getElementById('new-csm-unit').value.trim();
-      const current_stock = document.getElementById('new-csm-stock').value;
-      const min_stock_alert = document.getElementById('new-csm-min').value;
+      const recipient_name = document.getElementById('csm-out-recipient').value.trim();
+      const notes = document.getElementById('csm-out-notes').value.trim();
+      if (!recipient_name) {
+        alert('Nama penerima / pemohon wajib diisi!');
+        return;
+      }
+
+      const rows = document.querySelectorAll('#tbody-csm-out-rows .csm-out-row');
+      const items = [];
+      let hasError = false;
+
+      rows.forEach(r => {
+        const sel = r.querySelector('.csm-out-select');
+        const id = parseInt(sel.value, 10);
+        const opt = sel.options[sel.selectedIndex];
+        const stock = opt ? parseInt(opt.getAttribute('data-stock'), 10) || 0 : 0;
+        const quantity = parseInt(r.querySelector('.csm-out-qty').value, 10) || 0;
+
+        if (!id || quantity <= 0) return;
+        if (quantity > stock) {
+          alert(`Stok untuk "${opt.text}" tidak mencukupi (Tersedia: ${stock}, diminta: ${quantity})!`);
+          hasError = true;
+          return;
+        }
+        items.push({ id, quantity });
+      });
+
+      if (hasError) return;
+      if (items.length === 0) {
+        alert('Mohon pilih minimal 1 barang dengan jumlah valid!');
+        return;
+      }
+
       try {
-        await fetch('/api/consumables', {
+        const res = await fetch('/api/consumables/batch-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, category, unit, current_stock, min_stock_alert, userName: state.currentUser?.name })
+          body: JSON.stringify({
+            items,
+            recipient_name,
+            notes,
+            userName: state.currentUser?.name
+          })
         });
-        showToast('Item master baru disimpan');
-        closeModal('modal-consumable-new');
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Gagal memproses pengeluaran stok');
+        showToast(data.message || `Berhasil mengeluarkan ${data.count} barang untuk ${recipient_name}`);
+        closeModal('modal-consumable-out');
         await refreshAllData();
       } catch (err) {
         alert(err.message);
       }
+    }
+
+    function quickConsumableOut(id) {
+      initConsumableCheckoutRows(id);
+      openModal('modal-consumable-out');
     }
 
     // ============================================================

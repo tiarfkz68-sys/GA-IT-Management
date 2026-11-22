@@ -1,87 +1,63 @@
-# Implementation Plan: Filter, Multi-Select, Batch Operations & Git Versioning
+# Implementation Plan: Excel Import, Multi-line ATK, Rolling Animations & Mobile Optimization
 
-**Source Intent:** Confirmed Statement of Intent (2026-11-22)  
+**Source Spec/Intent:** [docs/intent/excel-import-multiline-atk-animation.md](../docs/intent/excel-import-multiline-atk-animation.md)  
 **Target:** GA & IT Operations Portal (Workbench)
 
 ---
 
 ## 1. Overview
-Menambahkan toolbar filter pencarian instan (real-time tanpa reload), fitur pemilihan ganda (*multi-select* baris aset) dengan floating bar aksi massal (*Batch Actions*), pencetakan stiker thermal massal berurutan untuk Niimbot B1 & XPrinter, dokumen BAST Gabungan untuk serah terima banyak perangkat ke 1 karyawan, serta inisialisasi Git version control dengan commit yang rapi.
+Mengembangkan 4 rangkaian fitur baru:
+1. **Import Excel Aset Utama:** Download template `.xlsx` resmi + modal upload, preview & batch insert aset.
+2. **Multi-line Form Consumables (ATK):** Input multi-baris dinamis untuk Master Barang, Penerimaan (Restock), dan Pengeluaran (Checkout) dalam satu transaksi.
+3. **Animasi Angka Bergulir & Page Transitions:** Animasi *rolling counter count-up* (efek odometer) pada metrik statistik dan transisi halaman yang elegan.
+4. **Mobile-Friendly Layout:** Sidebar drawer dengan tombol hamburger untuk HP, tabel responsif touch-friendly, dan modal adaptif.
 
 ---
 
-## 2. Architecture & Design Decisions
+## 2. Architecture Decisions
 
-### 2.1 Backend Batch API (`src/index.js`)
-- `POST /api/assets/batch-handover`: Menerima array `asset_ids`, `action_type`, `to_user_id`, `condition`, `notes`. Menggunakan satu transaksi database (`BEGIN ... COMMIT`) untuk menjaga integritas data:
-  - Generate 1 nomor BAST resmi gabungan: `BAST/YYYY/MM/BATCH-XXX`.
-  - Insert record serah terima ke `asset_user_history` untuk masing-masing aset.
-  - Update `status` dan `assigned_to_user_id` pada tabel `assets`.
-  - Catat log perubahan ke `activity_logs`.
-- `PATCH /api/assets/batch-status`: Mengubah status beberapa aset secara serentak (`available`, `maintenance`, `broken`, dsb.) dan mencatat log.
-- `POST /api/assets/batch-delete`: Menghapus beberapa aset yang dipilih sekaligus secara aman.
+### 2.1 Backend Batch Endpoints (`src/index.js`)
+- `POST /api/assets/batch-import`: Menerima array aset hasil parsing Excel, melakukan validasi, menangani duplikasi (skip/overwrite), dan menyimpan data beserta spek JSONB dalam satu transaksi database.
+- `POST /api/consumables/batch-create`: Menerima array master ATK baru dari form multi-line dan melakukan batch insert.
+- `POST /api/consumables/batch-restock`: Menerima array item restock dan meng-increment stok secara atomik.
+- `POST /api/consumables/batch-checkout`: Menerima pemohon, catatan, dan array item yang keluar, memeriksa kecukupan stok, mencatat log checkout, dan men-decrement stok secara atomik.
 
-### 2.2 Client-Side Instant Filtering
-- Menggunakan filtering di memori JavaScript (*reactive filter*):
-  - Pencarian teks multi-field: mencakup `code`, `name`, `serial_number`, `assigned_to_name`, `location`.
-  - Filter dropdown: Domain (`Semua`, `IT`, `GA`), Kategori spesifik, dan Status aset.
-  - Performa instan tanpa latency HTTP / reload halaman.
-  - Terapkan juga instant search & category filter pada tab **Consumables (ATK)** dan **Logbook Tiket**.
+### 2.2 Client-Side Excel Processing (SheetJS)
+- Menyematkan library SheetJS (`xlsx.full.min.js`) via CDN.
+- Fungsi `downloadAssetExcelTemplate()`: Membuat workbook `.xlsx` dengan format kolom baku dan 2 baris contoh data.
+- Modal `modal-import-assets`: File picker / drag-and-drop, parsing file `.xlsx`/`.csv` di browser, menampilkan preview tabel baris data yang terdeteksi sebelum dikirim ke backend.
 
-### 2.3 Multi-Select Checkboxes & Floating Action Bar
-- Checkbox pada header tabel (`#select-all-assets`) yang otomatis mencentang semua baris aset yang sedang lolos filter.
-- Checkbox per baris aset (`.asset-checkbox`). Baris yang dicentang mendapat highlight warna latar (*soft blue*).
-- Bar aksi melayang (*Floating Action Bar*) muncul di bagian bawah layar saat jumlah aset terpilih $\ge 1$:
-  - Menampilkan jumlah aset terpilih: e.g. `3 aset dipilih`.
-  - Tombol **Cetak Label Massal** (ikon printer).
-  - Tombol **Mutasi / BAST Gabungan** (ikon file-contract).
-  - Tombol **Ubah Status Massal** (ikon tag/arrows-rotate).
-  - Tombol **Hapus Massal** (ikon trash).
-  - Tombol **Batal Pilihan** (ikon xmark).
+### 2.3 Multi-line Form Architecture (Dynamic Row Grid)
+- Menggunakan pola DOM dinamis: container tabel form memiliki tombol `+ Tambah Baris` dan tombol hapus baris `❌`.
+- Helper JavaScript mengumpulkan seluruh nilai baris menjadi array JSON untuk dikirim ke endpoint batch backend.
 
-### 2.4 Multi-Page Thermal Sticker Printing (Niimbot B1 & XPrinter)
-- Menghasilkan kontainer DOM cetak dengan CSS:
-  ```css
-  @media print {
-    @page { size: ${w}mm ${h}mm; margin: 0; }
-    .thermal-label-page {
-      width: ${w}mm;
-      height: ${h}mm;
-      page-break-after: always;
-      break-after: page;
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-  }
-  ```
-- Generate QR Code untuk setiap aset terpilih secara beruntun.
-- Roll printer thermal akan mencetak stiker satu per satu tanpa terpotong atau offside.
+### 2.4 Rolling Counter Animation & CSS Transitions
+- Utility `animateRollingCounter(elementId, targetValue, duration)` menggunakan `requestAnimationFrame` dengan easing *easeOutExpo* dan efek visual CSS scroll/odometer.
+- CSS keyframe `@keyframes pageEntrance` diaplikasikan pada setiap pergantian tab agar transisi halus (*subtle slide-up + fade-in*).
 
-### 2.5 Dokumen BAST Gabungan (Multi-Asset Handover)
-- Modal penyerahan massal: Pilih karyawan penerima, kondisi barang, dan catatan serah terima.
-- Setelah submit, langsung menampilkan dokumen formal Berita Acara Serah Terima (BAST) dengan kop surat perusahaan, nomor surat, dan tabel rincian seluruh perangkat yang diserahkan, serta 3 kolom tanda tangan.
-
-### 2.6 Git Version Control
-- Buat `.gitignore` profesional (node_modules, env, log, ds_store).
-- Inisialisasi `git init`.
-- Buat commit terstruktur:
-  - Commit 1: Fondasi V2 (Skema DB 11 tabel, Auth, Pengaturan 4 Submenu, Label Designer).
-  - Commit 2: Fitur Filter, Multi-select, Batch Thermal Print, dan BAST Gabungan.
+### 2.5 Mobile Optimization
+- Breakpoint Tailwind `md:`:
+  - Di layar desktop (`>=md`): sidebar tetap fixed di sebelah kiri.
+  - Di layar mobile (`<md`): sidebar menjadi off-canvas drawer (`-translate-x-full fixed z-50`) dengan tombol toggle hamburger di topbar dan backdrop gelap.
+  - Modals menyesuaikan padding dan tinggi layar (`max-h-[90vh] overflow-y-auto`).
 
 ---
 
 ## 3. Task List & Phases
 
-### Phase 1: Backend Batch Endpoints
-- [ ] Task 1: Endpoint Batch Handover, Batch Status, dan Batch Delete (`src/index.js`)
+### Phase 1: Backend Batch Operations (`src/index.js`)
+- [ ] Task 1: Endpoint Batch Import Aset (`POST /api/assets/batch-import`)
+- [ ] Task 2: Endpoint Multi-line Consumables (`POST /api/consumables/batch-create`, `batch-restock`, `batch-checkout`)
 
-### Phase 2: Frontend Filter & Multi-Select Core
-- [ ] Task 2: Toolbar Instant Filter & Multi-Select Checkbox dengan Floating Action Bar (`public/index.html`)
-- [ ] Task 3: Instant Filter untuk Tab Consumables (ATK) & Logbook Tiket (`public/index.html`)
+### Phase 2: Excel Import & Template Generator (`public/index.html`)
+- [ ] Task 3: Generator Template Excel `.xlsx` & Modal Upload dengan Preview Data
 
-### Phase 3: Batch Thermal Printing & Combined BAST
-- [ ] Task 4: Multi-Page Thermal Sticker Printing untuk Niimbot B1 & XPrinter (`public/index.html`)
-- [ ] Task 5: Modal Mutasi Massal & Dokumen BAST Gabungan (`public/index.html`)
+### Phase 3: Multi-line Forms untuk Consumables / ATK (`public/index.html`)
+- [ ] Task 4: UI Form Multi-line Master ATK, Penerimaan (Restock), dan Pengeluaran (Checkout)
 
-### Phase 4: Verification & Git Commit
-- [ ] Task 6: Pengujian Integrasi End-to-End di Docker & Setup Git Repository dengan Clean Commits
+### Phase 4: Animasi & Mobile-Friendly Optimization (`public/index.html`)
+- [ ] Task 5: Animasi Angka Bergulir (*Rolling Odometer Counter*) & Transisi Halaman (*Page Entrance*)
+- [ ] Task 6: Responsive Drawer Sidebar (Hamburger Toggle) & Mobile Layout Polish
+
+### Phase 5: Verification & Git Commit
+- [ ] Task 7: Pengujian End-to-End di Docker & Git Atomic Commit
