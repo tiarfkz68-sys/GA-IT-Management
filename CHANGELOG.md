@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-11-23
 
 ### Added
+- **CI/CD & Automation Suite**: Added GitHub Actions quality gate pipeline (`.github/workflows/ci.yml`), automated release packaging (`release.yml`), Dependabot dependency monitoring (`dependabot.yml`), environment variable template (`.env.example`), and zero-dependency syntax validator (`scripts/check-syntax.cjs`).
 - **Performance Optimizations & Guard Suite**: Added Express Gzip compression (68% bundle reduction), ETag conditional caching (304 Not Modified), PostgreSQL B-tree foreign key indexes (98.3% planner cost reduction), CDN resource hints (`preconnect`, `dns-prefetch`), deferred non-critical scripts, and in-memory TTL caching for reference data recorded in `PERF.md`.
 - **Multi-line ATK / Consumable Transactions**: Multi-row forms for registering new consumable master items, batch restock receiving, and batch checkout with dynamic animated counters.
 - **Batch Asset Management**: Multi-select row selection, mass status changes, thermal barcode sticker batch printing, and combined Berita Acara Serah Terima (BAST) document generation.

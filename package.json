@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node scratch/test_endpoints.cjs"
+    "check": "node scripts/check-syntax.cjs",
+    "test": "node tests/api.test.cjs",
+    "test:integration": "node tests/api.test.cjs",
+    "perf:check": "node scratch/measure_perf.cjs"
   },
   "dependencies": {
     "compression": "^1.7.4",

@@ -1,0 +1,144 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  code-quality:
+    name: Code Quality & Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: JavaScript Syntax Verification
+        run: npm run check
+
+      - name: Dependency Security Audit
+        run: npm audit --audit-level=high
+
+  database-integration:
+    name: Database Integration Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gait_user
+          POSTGRES_PASSWORD: gait_secret_password
+          POSTGRES_DB: gait_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Seed Database Schema
+        run: PGPASSWORD=gait_secret_password psql -h localhost -U gait_user -d gait_db -f init.sql
+
+      - name: Start Server in Background
+        run: |
+          node src/index.js &
+          npx wait-on http://localhost:3000 --timeout 15000
+        env:
+          PORT: 3000
+          NODE_ENV: production
+          DATABASE_URL: postgres://gait_user:gait_secret_password@localhost:5432/gait_db
+
+      - name: Run API Integration Tests
+        run: npm test
+
+  accessibility-gate:
+    name: WCAG 2.2 AA Accessibility Gate
+    runs-on: ubuntu-latest
+    needs: database-integration
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gait_user
+          POSTGRES_PASSWORD: gait_secret_password
+          POSTGRES_DB: gait_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Seed Database Schema
+        run: PGPASSWORD=gait_secret_password psql -h localhost -U gait_user -d gait_db -f init.sql
+
+      - name: Start Server in Background
+        run: |
+          node src/index.js &
+          npx wait-on http://localhost:3000 --timeout 15000
+        env:
+          PORT: 3000
+          NODE_ENV: production
+          DATABASE_URL: postgres://gait_user:gait_secret_password@localhost:5432/gait_db
+
+      - name: Run axe-core CLI WCAG 2.2 AA Audit
+        run: npx --yes @axe-core/cli@4.13.0 http://localhost:3000 --exit
+
+  docker-build:
+    name: Docker Image Build & Validation
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ga-itmanagement-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
