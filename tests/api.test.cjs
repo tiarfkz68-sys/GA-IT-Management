@@ -16,7 +16,7 @@ function assert(condition, message) {
   }
 }
 
-function request(method, path, body = null) {
+function request(method, path, body = null, token = null) {
   return new Promise((resolve, reject) => {
     const data = body ? JSON.stringify(body) : null;
     const req = http.request({
@@ -25,7 +25,8 @@ function request(method, path, body = null) {
       path: path,
       method: method,
       headers: {
-        ...(data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {})
+        ...(data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {}),
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }
     }, res => {
       let resData = '';
@@ -107,6 +108,88 @@ async function runTests() {
   // 9. Cleanup test asset
   const del = await request('DELETE', `/api/assets/${createdAssetId}`);
   assert(del.status === 200, `Test asset cleaned up with status 200`);
+
+  const authToken = login.data.token;
+
+  // 10. Master Lokasi API
+  const locList = await request('GET', '/api/locations');
+  assert(locList.status === 200, `GET /api/locations status 200`);
+  assert(Array.isArray(locList.data) && locList.data.length >= 4, `Locations list returned at least 4 seeded items (${locList.data.length})`);
+  const testLocName = `Test Branch Office ${Date.now().toString().slice(-4)}`;
+  const createLoc = await request('POST', '/api/locations', {
+    name: testLocName,
+    building_floor: 'Lt 5 Gedung Baru',
+    description: 'Unit testing location creation'
+  }, authToken);
+  assert(createLoc.status === 201, `POST /api/locations status 201`);
+  assert(createLoc.data.name === testLocName, `Created location name matches`);
+  const testLocId = createLoc.data.id;
+
+  // 11. Master PIC / Karyawan API
+  const empList = await request('GET', '/api/employees');
+  assert(empList.status === 200, `GET /api/employees status 200`);
+  assert(Array.isArray(empList.data) && empList.data.length >= 5, `Employees list returned at least 5 seeded items (${empList.data.length})`);
+  const evaCecil = empList.data.find(e => e.name === 'Eva Cecil');
+  assert(Boolean(evaCecil), `Seeded employee 'Eva Cecil' found in PIC master`);
+  assert(evaCecil?.department === 'Support Indent', `Eva Cecil department is 'Support Indent'`);
+
+  const testNik = `EMP-TEST-${Date.now().toString().slice(-4)}`;
+  const createEmp = await request('POST', '/api/employees', {
+    nik: testNik,
+    name: 'Staff Operasional Test',
+    department: 'Team Delivery',
+    position: 'Driver Operasional',
+    phone_number: '081299887766'
+  }, authToken);
+  assert(createEmp.status === 201, `POST /api/employees status 201`);
+  assert(createEmp.data.nik === testNik, `Created employee NIK matches`);
+  const testEmpId = createEmp.data.id;
+
+  // 12. Asset with Location, Employee & Photo-matched BAST Handover
+  const phoneAsset = await request('POST', '/api/assets', {
+    name: 'Oppo A5 (Fasilitas Kantor)',
+    category: 'IT',
+    subcategory: 'smartphone',
+    serial_number: 'SN-OPPO-88192',
+    location_id: testLocId,
+    specs: {
+      phone_number: '081703803761',
+      sim_package: 'Biz Starter',
+      unit_price: 2450000
+    },
+    userName: 'IT Admin'
+  });
+  assert(phoneAsset.status === 201, `Smartphone asset created with status 201`);
+  const phoneAssetId = phoneAsset.data.id;
+
+  // Handover to Eva Cecil with Known By 1 & 2 and BAST template
+  const phoneHandover = await request('POST', `/api/assets/${phoneAssetId}/handover`, {
+    to_employee_id: evaCecil.id,
+    action_type: 'checkout',
+    condition: 'Baru, include Charger',
+    known_by_1: 'Supervisor Indent',
+    known_by_2: 'GA-IT Management',
+    bast_template: 'gadget',
+    notes: 'Penyerahan fasilitas HP perusahaan untuk staff Indent',
+    userName: 'Alex'
+  });
+  assert(phoneHandover.status === 200, `Smartphone handover to employee status 200`);
+  assert(typeof phoneHandover.data.bast_number === 'string', `Handover generated BAST number`);
+
+  // Verify History
+  const history = await request('GET', `/api/assets/${phoneAssetId}/history`);
+  assert(history.status === 200, `Asset history status 200`);
+  assert(history.data.handovers.length >= 1, `History returns handover record`);
+  const latestHandover = history.data.handovers[0];
+  assert(latestHandover.to_employee_name === 'Eva Cecil', `Handover recipient employee is Eva Cecil (${latestHandover.to_employee_name})`);
+  assert(latestHandover.to_employee_dept === 'Support Indent', `Handover recipient department is Support Indent`);
+  assert(latestHandover.known_by_1 === 'Supervisor Indent', `Known by 1 is Supervisor Indent`);
+  assert(latestHandover.bast_template === 'gadget', `BAST template is gadget`);
+
+  // Cleanup test assets and records
+  await request('DELETE', `/api/assets/${phoneAssetId}`);
+  await request('DELETE', `/api/employees/${testEmpId}`, null, authToken);
+  await request('DELETE', `/api/locations/${testLocId}`, null, authToken);
 
   console.log(`\n--- TEST RESULTS: ${passes} passed, ${failures} failed ---`);
   if (failures > 0) {

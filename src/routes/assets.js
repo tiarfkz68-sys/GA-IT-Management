@@ -16,6 +16,13 @@ router.get('/', async (req, res) => {
       SELECT 
         a.*, 
         u.name as assigned_to_name,
+        e.name as employee_name,
+        e.department as employee_department,
+        e.phone_number as employee_phone,
+        e.nik as employee_nik,
+        e.position as employee_position,
+        l.name as location_name,
+        l.building_floor as location_building_floor,
         COALESCE(
           (SELECT json_agg(json_build_object('id', acc.id, 'name', acc.name, 'category', acc.category))
            FROM accessories acc 
@@ -26,6 +33,8 @@ router.get('/', async (req, res) => {
         (SELECT COUNT(*) FROM asset_user_history h WHERE h.asset_id = a.id) as handover_count
       FROM assets a
       LEFT JOIN users u ON a.assigned_to_user_id = u.id
+      LEFT JOIN employees e ON a.assigned_to_employee_id = e.id
+      LEFT JOIN locations l ON a.location_id = l.id
       WHERE 1=1
     `;
     const params = [];
@@ -43,7 +52,7 @@ router.get('/', async (req, res) => {
     }
     if (search) {
       params.push(`%${search}%`);
-      q += ` AND (a.name ILIKE $${params.length} OR a.code ILIKE $${params.length} OR a.serial_number ILIKE $${params.length})`;
+      q += ` AND (a.name ILIKE $${params.length} OR a.code ILIKE $${params.length} OR a.serial_number ILIKE $${params.length} OR e.name ILIKE $${params.length} OR l.name ILIKE $${params.length})`;
     }
     q += ` ORDER BY a.id DESC`;
 
@@ -58,7 +67,20 @@ router.get('/', async (req, res) => {
 // 2. CREATE NEW ASSET
 // ============================================================
 router.post('/', async (req, res) => {
-  const { code, name, category, subcategory, serial_number, status = 'available', location = 'Head Office', specs = {}, assigned_to_user_id, userName } = req.body;
+  const { 
+    code, 
+    name, 
+    category, 
+    subcategory, 
+    serial_number, 
+    status: reqStatus, 
+    location = 'Head Office', 
+    location_id, 
+    specs = {}, 
+    assigned_to_user_id, 
+    assigned_to_employee_id, 
+    userName 
+  } = req.body;
 
   // Boundary Validation
   if (!name || !name.trim()) {
@@ -67,6 +89,11 @@ router.post('/', async (req, res) => {
   if (!category || !['IT', 'GA'].includes(category)) {
     return sendError(res, 422, 'Kategori divisi harus "IT" atau "GA".', 'INVALID_CATEGORY');
   }
+
+  const assignedEmpId = assigned_to_employee_id ? parseInt(assigned_to_employee_id, 10) : null;
+  const assignedUserId = assigned_to_user_id ? parseInt(assigned_to_user_id, 10) : null;
+  const locId = location_id ? parseInt(location_id, 10) : null;
+  const status = reqStatus || (assignedEmpId || assignedUserId ? 'assigned' : 'available');
 
   let finalCode = code ? code.trim() : '';
   if (!finalCode) {
@@ -79,20 +106,20 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     const result = await client.query(
-      `INSERT INTO assets (code, name, category, subcategory, serial_number, status, location, specs, assigned_to_user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [finalCode, name.trim(), category, subcategory || 'other', serial_number || null, status, location, JSON.stringify(specs || {}), assigned_to_user_id || null]
+      `INSERT INTO assets (code, name, category, subcategory, serial_number, status, location, location_id, specs, assigned_to_user_id, assigned_to_employee_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [finalCode, name.trim(), category, subcategory || 'other', serial_number || null, status, location, locId, JSON.stringify(specs || {}), assignedUserId, assignedEmpId]
     );
 
     const newAsset = result.rows[0];
 
-    // If assigned to a user right at creation, log initial handover in history
-    if (assigned_to_user_id) {
+    // If assigned to a user or employee right at creation, log initial handover in history
+    if (assignedUserId || assignedEmpId) {
       const bastNo = `BAST/${new Date().getFullYear()}/${Date.now().toString().slice(-4)}`;
       await client.query(
-        `INSERT INTO asset_user_history (asset_id, to_user_id, action_type, condition, bast_number, notes)
-         VALUES ($1, $2, 'checkout', 'Baik (Aset Baru)', $3, 'Penyerahan awal saat registrasi aset')`,
-        [newAsset.id, assigned_to_user_id, bastNo]
+        `INSERT INTO asset_user_history (asset_id, to_user_id, to_employee_id, action_type, condition, bast_number, notes)
+         VALUES ($1, $2, $3, 'checkout', 'Baik (Aset Baru)', $4, 'Penyerahan awal saat registrasi aset')`,
+        [newAsset.id, assignedUserId, assignedEmpId, bastNo]
       );
     }
 
@@ -116,7 +143,18 @@ router.post('/', async (req, res) => {
 
 // Batch Mutasi / Serah Terima (Combined BAST)
 router.post('/batch-handover', async (req, res) => {
-  const { asset_ids = [], to_user_id, action_type = 'checkout', condition = 'Baik (Normal)', notes, userName } = req.body;
+  const { 
+    asset_ids = [], 
+    to_user_id, 
+    to_employee_id,
+    known_by_1,
+    known_by_2,
+    bast_template = 'general',
+    action_type = 'checkout', 
+    condition = 'Baik (Normal)', 
+    notes, 
+    userName 
+  } = req.body;
   if (!Array.isArray(asset_ids) || asset_ids.length === 0) {
     return sendError(res, 400, 'Daftar aset tidak boleh kosong', 'VALIDATION_ERROR');
   }
@@ -127,26 +165,39 @@ router.post('/batch-handover', async (req, res) => {
     const bastNo = `BAST/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/BATCH-${Date.now().toString().slice(-4)}`;
     const newStatus = action_type === 'checkin' ? 'available' : 'assigned';
     const targetUserId = action_type === 'checkin' ? null : (to_user_id ? parseInt(to_user_id, 10) : null);
+    const targetEmpId = action_type === 'checkin' ? null : (to_employee_id ? parseInt(to_employee_id, 10) : null);
 
     const processed = [];
     for (const id of asset_ids) {
-      const cur = await client.query('SELECT id, code, name, assigned_to_user_id FROM assets WHERE id = $1 FOR UPDATE', [id]);
+      const cur = await client.query('SELECT id, code, name, assigned_to_user_id, assigned_to_employee_id FROM assets WHERE id = $1 FOR UPDATE', [id]);
       if (cur.rows.length === 0) continue;
       const asset = cur.rows[0];
       const from_user_id = asset.assigned_to_user_id;
+      const from_employee_id = asset.assigned_to_employee_id;
 
       await client.query(
-        'UPDATE assets SET assigned_to_user_id = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-        [targetUserId, newStatus, id]
+        'UPDATE assets SET assigned_to_user_id = $1, assigned_to_employee_id = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+        [targetUserId, targetEmpId, newStatus, id]
       );
 
       await client.query(
-        `INSERT INTO asset_user_history (asset_id, from_user_id, to_user_id, action_type, condition, bast_number, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [id, from_user_id, targetUserId, action_type, condition, bastNo, notes || null]
+        `INSERT INTO asset_user_history (
+           asset_id, from_user_id, to_user_id, from_employee_id, to_employee_id, 
+           action_type, condition, bast_number, notes, known_by_1, known_by_2, bast_template
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [id, from_user_id, targetUserId, from_employee_id, targetEmpId, action_type, condition, bastNo, notes || null, known_by_1 || null, known_by_2 || null, bast_template || 'general']
       );
 
-      const actionDesc = action_type === 'checkin' ? 'Pengembalian massal ke gudang' : `Serah terima massal ke user ID: ${targetUserId}`;
+      let actionDesc = '';
+      if (action_type === 'checkin') {
+        actionDesc = 'Pengembalian massal ke gudang';
+      } else if (targetEmpId) {
+        actionDesc = `Serah terima massal ke Karyawan ID: ${targetEmpId}`;
+      } else {
+        actionDesc = `Serah terima massal ke user ID: ${targetUserId}`;
+      }
+
       await client.query(
         `INSERT INTO activity_logs (user_name, action, target_type, target_id, details)
          VALUES ($1, $2, $3, $4, $5)`,
@@ -348,14 +399,24 @@ router.post('/batch-import', async (req, res) => {
 // Serah Terima Aset Tunggal (Handover / Mutasi Pemegang) - FULL TRANSACTION
 router.post('/:id/handover', async (req, res) => {
   const { id } = req.params;
-  const { to_user_id, action_type = 'checkout', condition = 'Baik (Normal)', notes, userName } = req.body;
+  const { 
+    to_user_id, 
+    to_employee_id, 
+    known_by_1, 
+    known_by_2, 
+    bast_template = 'general',
+    action_type = 'checkout', 
+    condition = 'Baik (Normal)', 
+    notes, 
+    userName 
+  } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     // 1. Ambil data aset dengan row lock FOR UPDATE
-    const current = await client.query(`SELECT id, code, name, assigned_to_user_id FROM assets WHERE id = $1 FOR UPDATE`, [id]);
+    const current = await client.query(`SELECT id, code, name, assigned_to_user_id, assigned_to_employee_id FROM assets WHERE id = $1 FOR UPDATE`, [id]);
     if (current.rows.length === 0) {
       await client.query('ROLLBACK');
       return sendError(res, 404, 'Aset tidak ditemukan', 'NOT_FOUND');
@@ -363,25 +424,38 @@ router.post('/:id/handover', async (req, res) => {
 
     const asset = current.rows[0];
     const from_user_id = asset.assigned_to_user_id;
+    const from_employee_id = asset.assigned_to_employee_id;
     const newStatus = action_type === 'checkin' ? 'available' : 'assigned';
     const targetUserId = action_type === 'checkin' ? null : (to_user_id ? parseInt(to_user_id, 10) : null);
+    const targetEmpId = action_type === 'checkin' ? null : (to_employee_id ? parseInt(to_employee_id, 10) : null);
     const bastNo = `BAST/${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`;
 
-    // 2. Update status aset & assigned user
+    // 2. Update status aset & assigned user & employee
     await client.query(
-      `UPDATE assets SET assigned_to_user_id = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
-      [targetUserId, newStatus, id]
+      `UPDATE assets SET assigned_to_user_id = $1, assigned_to_employee_id = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
+      [targetUserId, targetEmpId, newStatus, id]
     );
 
     // 3. Catat di asset_user_history
     const historyResult = await client.query(
-      `INSERT INTO asset_user_history (asset_id, from_user_id, to_user_id, action_type, condition, bast_number, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [id, from_user_id, targetUserId, action_type, condition, bastNo, notes || null]
+      `INSERT INTO asset_user_history (
+         asset_id, from_user_id, to_user_id, from_employee_id, to_employee_id, 
+         action_type, condition, bast_number, notes, known_by_1, known_by_2, bast_template
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [id, from_user_id, targetUserId, from_employee_id, targetEmpId, action_type, condition, bastNo, notes || null, known_by_1 || null, known_by_2 || null, bast_template || 'general']
     );
 
     // 4. Log Activity
-    const actionDesc = action_type === 'checkin' ? 'Pengembalian aset ke gudang' : `Serah terima aset ke user ID: ${targetUserId}`;
+    let actionDesc = '';
+    if (action_type === 'checkin') {
+      actionDesc = 'Pengembalian aset ke gudang';
+    } else if (targetEmpId) {
+      actionDesc = `Serah terima aset ke Karyawan ID: ${targetEmpId}`;
+    } else {
+      actionDesc = `Serah terima aset ke user ID: ${targetUserId}`;
+    }
+
     await client.query(
       `INSERT INTO activity_logs (user_name, action, target_type, target_id, details)
        VALUES ($1, $2, $3, $4, $5)`,
@@ -408,10 +482,23 @@ router.get('/:id/history', async (req, res) => {
   try {
     const [handovers, maintenances, logs] = await Promise.all([
       query(`
-        SELECT h.*, u_from.name as from_user_name, u_to.name as to_user_name
+        SELECT 
+          h.*, 
+          u_from.name as from_user_name, 
+          u_to.name as to_user_name,
+          e_from.name as from_employee_name,
+          e_from.department as from_employee_dept,
+          e_from.position as from_employee_position,
+          e_to.name as to_employee_name,
+          e_to.department as to_employee_dept,
+          e_to.phone_number as to_employee_phone,
+          e_to.nik as to_employee_nik,
+          e_to.position as to_employee_position
         FROM asset_user_history h
         LEFT JOIN users u_from ON h.from_user_id = u_from.id
         LEFT JOIN users u_to ON h.to_user_id = u_to.id
+        LEFT JOIN employees e_from ON h.from_employee_id = e_from.id
+        LEFT JOIN employees e_to ON h.to_employee_id = e_to.id
         WHERE h.asset_id = $1
         ORDER BY h.id DESC
       `, [id]),

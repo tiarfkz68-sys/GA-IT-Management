@@ -14,6 +14,8 @@ import consumableRoutes from './routes/consumables.js';
 import ticketRoutes from './routes/tickets.js';
 import activityLogRoutes from './routes/activityLogs.js';
 import reportRoutes from './routes/reports.js';
+import locationsRoutes from './routes/locations.js';
+import employeesRoutes from './routes/employees.js';
 import { sendError } from './utils/errorResponse.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -59,6 +61,8 @@ app.use('/api/consumables', consumableRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/locations', locationsRoutes);
+app.use('/api/employees', employeesRoutes);
 
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {

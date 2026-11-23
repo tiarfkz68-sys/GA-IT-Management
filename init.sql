@@ -261,3 +261,56 @@ CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, created_at DESC
 CREATE INDEX IF NOT EXISTS idx_tickets_related_asset ON tickets(related_asset_id) WHERE related_asset_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_consumable_checkouts_csm ON consumable_checkouts(consumable_id, checkout_date DESC);
+
+
+-- ============================================================
+-- V1.2.0: Master Lokasi & Master PIC / Karyawan
+-- ============================================================
+CREATE TABLE IF NOT EXISTS locations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    building_floor VARCHAR(100),
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+    id SERIAL PRIMARY KEY,
+    nik VARCHAR(50) UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    position VARCHAR(100),
+    phone_number VARCHAR(30),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE assets 
+    ADD COLUMN IF NOT EXISTS location_id INT REFERENCES locations(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS assigned_to_employee_id INT REFERENCES employees(id) ON DELETE SET NULL;
+
+ALTER TABLE asset_user_history
+    ADD COLUMN IF NOT EXISTS from_employee_id INT REFERENCES employees(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS to_employee_id INT REFERENCES employees(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS known_by_1 VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS known_by_2 VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS bast_template VARCHAR(30) DEFAULT 'standard';
+
+CREATE INDEX IF NOT EXISTS idx_assets_location_id ON assets(location_id);
+CREATE INDEX IF NOT EXISTS idx_assets_assigned_emp ON assets(assigned_to_employee_id);
+CREATE INDEX IF NOT EXISTS idx_employees_department ON employees(department);
+
+INSERT INTO locations (name, building_floor, description) VALUES
+('Head Office - Lt 1 Operasional', 'Gedung Utama Lantai 1', 'Lobby, Meja Resepsionis, dan Ruang Tamu'),
+('Head Office - Lt 2 Ruang Rapat Bromo', 'Gedung Utama Lantai 2', 'Ruang Rapat Utama & Fasilitas Proyektor'),
+('Head Office - Lt 3 Ruang IT & Server', 'Gedung Utama Lantai 3', 'Ruang Kerja IT Support, Server Rack, dan Workstation'),
+('Gudang Logistik & Workshop', 'Basement 1', 'Penyimpanan cadangan perangkat keras dan ATK')
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO employees (nik, name, department, position, phone_number) VALUES
+('EMP-001', 'Eva Cecil', 'Support Indent', 'Staff Administrasi Indent', '081703803761'),
+('EMP-002', 'Budi Santoso', 'Financial / Tagihan', 'Staff Finance & Billing', '081234567890'),
+('EMP-003', 'Siti Sarah', 'Purchasing', 'Purchasing Officer', '081398765432'),
+('EMP-004', 'Denny Kurniawan', 'Delivery Order', 'Koordinator Tim Pengiriman', '085711223344'),
+('EMP-005', 'Hendra Wijaya', 'Marketing', 'Account Executive', '081822334455')
+ON CONFLICT (nik) DO NOTHING;

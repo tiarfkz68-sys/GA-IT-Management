@@ -138,6 +138,10 @@
 
     /* Print media query for thermal sticker & BAST */
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+      }
       body * { visibility: hidden; }
       #printable-sticker, #printable-sticker * { visibility: visible; }
       #printable-bast, #printable-bast * { visibility: visible; }
@@ -159,7 +163,9 @@
         top: 0;
         width: 100%;
         margin: 0;
-        padding: 20px;
+        padding: 10px;
+        box-shadow: none !important;
+        border: none !important;
       }
     }
 
@@ -649,27 +655,37 @@
 
           <div>
             <h3 class="text-xs font-bold uppercase tracking-wider mb-3 pb-1 border-b border-linen-200 flex items-center gap-2 text-amber-600">
-              <i class="fa-solid fa-user-check"></i> 3. Status & Penempatan
+              <i class="fa-solid fa-user-check"></i> 3. Status, Lokasi & Pemegang (PIC)
             </h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label for="new-status" class="block text-xs font-semibold text-navy-800 mb-1">Status Awal</label>
                 <select id="new-status" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
                   <option value="available">Tersedia di Gudang (Available)</option>
-                  <option value="assigned">Diserahkan ke Karyawan (Assigned)</option>
+                  <option value="assigned">Diserahkan ke PIC (Assigned)</option>
                   <option value="maintenance">Dalam Perbaikan (Maintenance)</option>
                 </select>
               </div>
 
               <div>
-                <label for="new-location" class="block text-xs font-semibold text-navy-800 mb-1">Lokasi Fisik</label>
-                <input id="new-location" type="text" value="Jakarta HQ" placeholder="Contoh: Ruang IT Lt 3" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+                <label for="new-location-select" class="block text-xs font-semibold text-navy-800 mb-1">Lokasi Master *</label>
+                <select id="new-location-select" onchange="syncLocationInput()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+                  <option value="">-- Pilih Dari Master Lokasi --</option>
+                </select>
+                <input id="new-location" type="hidden" value="Head Office">
               </div>
 
               <div>
-                <label for="new-assigned-user" class="block text-xs font-semibold text-navy-800 mb-1">Diserahkan Kepada (User)</label>
+                <label for="new-assigned-employee" class="block text-xs font-semibold text-navy-800 mb-1">Pemegang Aset (Master PIC)</label>
+                <select id="new-assigned-employee" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
+                  <option value="">-- Belum Ada PIC (Di Gudang) --</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="new-assigned-user" class="block text-xs font-semibold text-navy-800 mb-1">User Akun Login (Opsional)</label>
                 <select id="new-assigned-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
-                  <option value="">-- Belum Di-assign (Di Gudang) --</option>
+                  <option value="">-- Tidak Ditautkan ke Akun Login --</option>
                 </select>
               </div>
             </div>
@@ -902,6 +918,12 @@
           <button onclick="switchSettingsTab('label')" id="settab-label" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
             <i class="fa-solid fa-print mr-1.5 text-amber-600"></i> 4. Cetak Label (Niimbot & XPrinter)
           </button>
+          <button onclick="switchSettingsTab('locations')" id="settab-locations" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+            <i class="fa-solid fa-map-location-dot mr-1.5 text-amber-600"></i> 5. Master Lokasi
+          </button>
+          <button onclick="switchSettingsTab('employees')" id="settab-employees" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+            <i class="fa-solid fa-id-card mr-1.5 text-amber-600"></i> 6. Master PIC / Karyawan
+          </button>
         </div>
 
         <!-- Submenu 1: Logo & Header -->
@@ -1129,6 +1151,83 @@
 
           </div>
         </div>
+
+        <!-- Submenu 5: Master Lokasi -->
+        <div id="settings-view-locations" class="hidden space-y-4">
+          <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-navy-900 flex items-center gap-2">
+                <i class="fa-solid fa-map-location-dot text-amber-600"></i> Master Lokasi & Gedung Kantor
+              </h3>
+              <p class="text-xs text-navy-700/70">Daftar lokasi fisik, gedung, dan lantai untuk penempatan aset perusahaan.</p>
+            </div>
+            <button onclick="openModal('modal-add-location')" class="px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-plus mr-1"></i> + Tambah Lokasi
+            </button>
+          </div>
+
+          <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    <th class="th-cell">Nama Lokasi</th>
+                    <th class="th-cell">Gedung / Lantai</th>
+                    <th class="th-cell">Keterangan</th>
+                    <th class="th-cell text-center">Jumlah Aset</th>
+                    <th class="th-cell text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="locations-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submenu 6: Master PIC / Karyawan -->
+        <div id="settings-view-employees" class="hidden space-y-4">
+          <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-navy-900 flex items-center gap-2">
+                <i class="fa-solid fa-id-card text-amber-600"></i> Master Pemegang Aset (PIC / Karyawan)
+              </h3>
+              <p class="text-xs text-navy-700/70">Daftar staf, kurir, driver, administrasi yang menerima fasilitas/aset inventaris kantor.</p>
+            </div>
+            <button onclick="openModal('modal-add-employee')" class="px-3.5 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-user-plus mr-1"></i> + Tambah Karyawan / PIC
+            </button>
+          </div>
+
+          <!-- Filter & Search PIC -->
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="relative flex-1 min-w-[200px]">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-navy-400 text-xs"></i>
+              <input id="search-employee-input" oninput="filterEmployeesTable()" type="text" placeholder="Cari nama karyawan, NIK, atau bagian..." class="w-full text-xs pl-8 pr-3 py-2 bg-white border border-linen-300 rounded-lg text-navy-900 focus:ring-2 focus:ring-amber-500">
+            </div>
+            <select id="filter-employee-dept" onchange="filterEmployeesTable()" class="text-xs bg-white border border-linen-300 rounded-lg p-2 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="">-- Semua Bagian / Departemen --</option>
+            </select>
+          </div>
+
+          <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr>
+                    <th class="th-cell">NIK</th>
+                    <th class="th-cell">Nama Lengkap</th>
+                    <th class="th-cell">Bagian / Departemen</th>
+                    <th class="th-cell">Jabatan</th>
+                    <th class="th-cell">No. HP / WhatsApp</th>
+                    <th class="th-cell text-center">Aset Dipegang</th>
+                    <th class="th-cell text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="employees-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </section>
 
     </div>
@@ -1138,90 +1237,188 @@
   <!-- MODAL: CETAK BAST DIGITAL (OFFICIAL HANDOVER) -->
   <!-- ========================================================= -->
   <div id="modal-bast" role="dialog" aria-modal="true" aria-labelledby="modal-title-bast" class="modal-overlay hidden">
-    <div class="bg-linen-50 rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 id="modal-title-bast" class="font-bold text-sm text-navy-900 flex items-center gap-2">
-          <i class="fa-solid fa-file-contract text-amber-600" aria-hidden="true"></i> Dokumen Berita Acara Serah Terima (BAST)
-        </h3>
+    <div class="bg-linen-50 rounded-xl max-w-3xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[92vh] overflow-y-auto">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-linen-200 gap-3">
+        <div>
+          <h3 id="modal-title-bast" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-contract text-amber-600" aria-hidden="true"></i> Dokumen Berita Acara Serah Terima (BAST)
+          </h3>
+          <p class="text-[11px] text-navy-700/70">Format resmi Berita Acara Serah Terima fasilitas & inventaris kantor</p>
+        </div>
         <div class="flex items-center gap-2">
-          <button onclick="printBAST()" class="px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded shadow-sm">
-            <i class="fa-solid fa-print mr-1"></i> Cetak / Simpan PDF
+          <!-- Template Toggle Pills -->
+          <div class="inline-flex rounded-lg border border-linen-300 p-0.5 bg-linen-100 text-[11px]">
+            <button id="btn-bast-tpl-gadget" onclick="switchBastTemplate('gadget')" class="px-2.5 py-1 rounded-md font-bold transition bg-amber-500 text-navy-950 shadow-sm">
+              <i class="fa-solid fa-mobile-screen mr-1"></i> Fasilitas HP
+            </button>
+            <button id="btn-bast-tpl-general" onclick="switchBastTemplate('general')" class="px-2.5 py-1 rounded-md font-bold text-navy-700 hover:text-navy-950 transition">
+              <i class="fa-solid fa-boxes-stacked mr-1"></i> Aset Umum
+            </button>
+          </div>
+          <button onclick="printBAST()" class="px-3.5 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded shadow-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-print"></i> Cetak / PDF
           </button>
           <button onclick="closeModal('modal-bast')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup dokumen BAST"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
 
-      <!-- Printable BAST Paper -->
-      <div id="printable-bast" class="p-6 border border-slate-300 rounded-lg bg-white text-slate-900 text-xs space-y-4 font-serif">
-        <!-- Kop Surat -->
-        <div class="text-center border-b-2 border-slate-800 pb-3">
-          <h2 class="text-base font-bold uppercase tracking-wider" id="bast-company-name">PT NUSA PERSADA UTAMA</h2>
-          <p class="text-[11px] text-slate-600">DIVISI GENERAL AFFAIRS & TEKNOLOGI INFORMASI</p>
-          <p class="text-[10px] text-slate-500 font-sans">Head Office: Jakarta, Indonesia • Telepon / Helpdesk: (021) 555-0199</p>
+      <!-- Printable BAST Paper (Faithful to Company Form Format) -->
+      <div id="printable-bast" class="p-8 border border-slate-400 rounded-lg bg-white text-black text-xs space-y-4 font-sans leading-relaxed">
+        
+        <!-- Header: TGC OF [COMPANY] with Double Underline -->
+        <div class="text-center pb-2 border-b-4 border-double border-black">
+          <h1 class="text-xl md:text-2xl font-black uppercase tracking-wider font-sans text-black" id="bast-company-header">TGC OF PT. JAYA MAKMUR INDONESIA</h1>
         </div>
 
-        <div class="text-center pt-1">
-          <h3 class="font-bold text-sm underline uppercase">BERITA ACARA SERAH TERIMA ASET</h3>
-          <p class="text-[11px] font-sans font-mono" id="bast-doc-number">Nomor: BAST/2026/11/001</p>
+        <!-- Document Title -->
+        <div class="text-center pt-1 pb-1">
+          <h2 class="text-sm md:text-base font-black underline uppercase tracking-wide text-black" id="bast-title">FASILITAS HANDPHONE DARI PERUSAHAAN</h2>
+          <p class="text-[10px] font-mono text-slate-600 mt-0.5" id="bast-doc-number">Nomor: BAST/2026/11/001</p>
         </div>
 
-        <p class="font-sans text-[11px] leading-relaxed">
-          Pada hari ini, <span id="bast-date-str" class="font-semibold"></span>, telah diserahkan fasilitas/aset operasional kantor kepada karyawan yang bersangkutan dengan rincian sebagai berikut:
-        </p>
+        <!-- Preamble Section (Gadget Specific) -->
+        <div id="bast-preamble-gadget" class="space-y-2 text-[11px] leading-relaxed text-justify font-sans text-black">
+          <p class="uppercase">
+            PER TGL <span id="bast-policy-date" class="font-semibold">2 JULI 2018</span>, PERUSAHAAN AKAN MENYEDIAKAN FASILITAS HP UNTUK STAFF MAUPUN KARYAWAN YANG BERHUBUNGAN DENGAN PIHAK LUAR, SEPERTI BAGIAN INDENT, BAGIAN PUCHASING, BAGIAN FINANCIAL ( TAGIHAN), BAGIAN MARKETING, BAGIAN DELIVERY ORDER, BAGIAN SALES ORDER, TEAM DELIVERY (TEAM PENGIRIMAN) MAUPUN TEAM SECURITY DAN PRODUKSI.
+          </p>
+          <p class="uppercase">
+            ADAPUN FASILITAS TERSEBUT PERUSAHAAN LEWAT MEETING BERSAMA PADA TGL : <span id="bast-meeting-date" class="font-semibold">2 JUNI 2018</span> TELAH MENGADAKAN KESEPAKATAN DALAM HAL MERK DAN TYPE HP SERTA PROVIDER DENGAN SUARA TERBANYAK SBB :
+          </p>
+        </div>
 
-        <!-- Tabel Identitas Barang -->
-        <table class="w-full border-collapse border border-slate-300 font-sans text-[11px]">
-          <tbody>
-            <tr class="border-b border-slate-200">
-              <td class="p-2 font-bold bg-slate-50 w-36">Kode Tag Aset</td>
-              <td class="p-2 font-mono font-bold text-slate-900" id="bast-asset-code">IT-LPT-001</td>
-            </tr>
-            <tr class="border-b border-slate-200">
-              <td class="p-2 font-bold bg-slate-50">Nama Perangkat</td>
-              <td class="p-2 font-semibold" id="bast-asset-name">MacBook Pro M3</td>
-            </tr>
-            <tr class="border-b border-slate-200">
-              <td class="p-2 font-bold bg-slate-50">Serial Number / IMEI</td>
-              <td class="p-2 font-mono" id="bast-asset-serial">-</td>
-            </tr>
-            <tr class="border-b border-slate-200">
-              <td class="p-2 font-bold bg-slate-50">Spesifikasi Detail</td>
-              <td class="p-2" id="bast-asset-specs">-</td>
-            </tr>
-            <tr class="border-b border-slate-200">
-              <td class="p-2 font-bold bg-slate-50">Aksesoris Bawaan</td>
-              <td class="p-2" id="bast-asset-accs">Unit Lengkap, Adaptor Charger</td>
-            </tr>
-            <tr>
-              <td class="p-2 font-bold bg-slate-50">Kondisi Fisik</td>
-              <td class="p-2 font-semibold text-emerald-700">Baik / Siap Operasional</td>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Preamble Section (General Asset Specific) -->
+        <div id="bast-preamble-general" class="hidden text-[11px] leading-relaxed text-justify font-sans text-black">
+          <p>
+            Pada hari ini, <span id="bast-date-str" class="font-bold">Senin, 23 November 2026</span>, telah diserahkan fasilitas dan peralatan inventaris operasional kantor milik perusahaan kepada karyawan / pemegang yang namanya tercantum dalam dokumen ini dengan rincian identitas aset sebagai berikut :
+          </p>
+        </div>
 
-        <!-- Pernyataan -->
-        <p class="font-sans text-[10px] text-slate-600 leading-normal italic">
-          * Catatan: Penerima bertanggung jawab penuh atas pemeliharaan dan penggunaan wajar aset perusahaan ini. Apabila terjadi mutasi, pengunduran diri (resign), atau kerusakan wajib melapor ke GA & IT Support.
-        </p>
-
-        <!-- Kolom Tanda Tangan -->
-        <div class="grid grid-cols-3 gap-4 pt-6 text-center font-sans text-[11px]">
-          <div>
-            <p class="text-slate-600 mb-12">Yang Menyerahkan (GA/IT),</p>
-            <p class="font-bold underline" id="bast-pic-name">Rian Pratama</p>
-            <p class="text-[10px] text-slate-500">PIC GA-IT</p>
-          </div>
-          <div>
-            <p class="text-slate-600 mb-12">Yang Menerima,</p>
-            <p class="font-bold underline" id="bast-recipient-name">Budi Santoso</p>
-            <p class="text-[10px] text-slate-500">Karyawan / User</p>
-          </div>
-          <div>
-            <p class="text-slate-600 mb-12">Mengetahui,</p>
-            <p class="font-bold underline">Ratna Dewi</p>
-            <p class="text-[10px] text-slate-500">HRD / Atasan Langsung</p>
+        <!-- Unit Specification Table / Grid -->
+        <div class="border border-black p-3.5 bg-slate-50/50 rounded-sm">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[11px] font-sans">
+            <div class="flex items-baseline justify-between border-b border-dotted border-slate-400 pb-1">
+              <span class="font-bold text-black" id="bast-label-type">TYPE HP/TAB :</span>
+              <span class="font-black text-black text-right" id="bast-unit-type">Oppo A5</span>
+            </div>
+            <div class="flex items-baseline justify-between border-b border-dotted border-slate-400 pb-1">
+              <span class="font-bold text-black" id="bast-label-phone">NO HP/TAB :</span>
+              <span class="font-mono font-bold text-black text-right" id="bast-unit-phone">081703803761</span>
+            </div>
+            <div class="flex items-baseline justify-between border-b border-dotted border-slate-400 pb-1">
+              <span class="font-bold text-black" id="bast-label-price">HARGA UNIT HP :</span>
+              <span class="font-mono font-bold text-black text-right" id="bast-unit-price">Rp. 2.450.000</span>
+            </div>
+            <div class="flex items-baseline justify-between border-b border-dotted border-slate-400 pb-1">
+              <span class="font-bold text-black" id="bast-label-package">PAKET NOMOR HP :</span>
+              <span class="font-semibold text-black text-right" id="bast-unit-package">Biz Starter</span>
+            </div>
+            <div class="flex items-baseline justify-between border-b border-dotted border-slate-400 pb-1">
+              <span class="font-bold text-black">SERIAL NUMBER :</span>
+              <span class="font-mono text-black text-right" id="bast-unit-serial">-</span>
+            </div>
+            <div class="flex items-baseline justify-between border-b border-dotted border-slate-400 pb-1">
+              <span class="font-bold text-black">LOKASI PENEMPATAN :</span>
+              <span class="text-black text-right" id="bast-unit-location">Head Office</span>
+            </div>
           </div>
         </div>
+
+        <!-- 4 Butir Klausul Aturan Tanggung Jawab Mutlak (Wajib di Semua BAST) -->
+        <div class="pt-1">
+          <p class="font-bold uppercase text-[11px] text-black mb-1.5 font-sans">
+            BERHUBUNG INI ADALAH FASILITAS DARI PERUSAHAAN, MAKA PERUSAHAAN MENENTUKAN ATURAN SBB :
+          </p>
+          <ol class="list-decimal list-outside ml-5 space-y-1 text-[11px] font-sans font-medium text-justify uppercase text-black">
+            <li>
+              INVENTARIS <span class="bast-item-term font-bold">HANDPHONE</span> HARUS DI TANGGUNG JAWAB OLEH NAMA YANG TERTERA DI FORM INI.
+            </li>
+            <li>
+              DILARANG MEMBAWA PULANG INVENTARIS <span class="bast-item-term font-bold">HP</span>, KECUALI SUDAH DI IJIN KAN OLEH PIMPINAN / MANAGER / SUPERVISOR MASING MASING BAGIAN *
+            </li>
+            <li>
+              PEMEGANG INVENTARIS <span class="bast-item-term font-bold">HP</span> BERTANGGUNG JAWAB TERHADAP KONDISI <span class="bast-item-term font-bold">HP</span>, JIKA ADA KERUSAKAN MAKA AKAN DIBEBANKAN BIAYA PERBAIKAN KEPADA PEMEGANG INVENTARIS <span class="bast-item-term font-bold">HP</span> SEBESAR 50% .
+            </li>
+            <li>
+              JIKA <span class="bast-item-term font-bold">HP</span> HILANG MAKA PENGANTIAN UNIT <span class="bast-item-term font-bold">HP</span> DI TANGGUNG OLEH PEMEGANG 100%
+            </li>
+          </ol>
+        </div>
+
+        <!-- Data Pemegang & Tanggal Penyerahan -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[11px] font-sans pt-2 border-t border-slate-300">
+          <div class="flex items-baseline justify-between border-b border-black pb-0.5">
+            <span class="font-bold text-black" id="bast-label-holder">NAMA PEMEGANG HP/TAB :</span>
+            <span class="font-bold text-black text-right" id="bast-holder-name">Eva Cecil</span>
+          </div>
+          <div class="flex items-baseline justify-between border-b border-black pb-0.5">
+            <span class="font-bold text-black">BAGIAN :</span>
+            <span class="font-bold text-black text-right" id="bast-holder-dept">Support Indent</span>
+          </div>
+          <div class="flex items-baseline justify-between border-b border-black pb-0.5">
+            <span class="font-bold text-black">DIBERIKAN PADA TGL :</span>
+            <span class="font-medium text-black text-right" id="bast-given-date">23 Nov 2026</span>
+          </div>
+          <div class="flex items-baseline justify-between border-b border-black pb-0.5">
+            <span class="font-bold text-black" id="bast-label-condition">KONDISI HP/TAB SAAT DI BERIKAN :</span>
+            <span class="font-medium text-black text-right" id="bast-holder-condition">Baru, include Charger</span>
+          </div>
+        </div>
+
+        <!-- Header Kolom Tanda Tangan -->
+        <div class="pt-2">
+          <p class="font-bold uppercase text-[11px] text-black font-sans">SAYA YANG BERTANDA TANGAN DI BAWAH INI ,</p>
+        </div>
+
+        <!-- 3 Kolom Tanda Tangan Resmi -->
+        <div class="grid grid-cols-3 gap-4 pt-1 pb-2 text-[11px] font-sans">
+          <!-- Kolom 1: Penerima / Pemegang Aset -->
+          <div class="border border-slate-300 p-2.5 rounded bg-slate-50/30 flex flex-col justify-between min-h-[140px]">
+            <div>
+              <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Penerima Fasilitas :</p>
+              <div class="text-xs font-bold text-black" id="bast-sign-name">NAMA : Eva Cecil</div>
+              <div class="text-[11px] text-slate-700 mt-0.5" id="bast-sign-dept">BAGIAN : Support Indent</div>
+            </div>
+            <div class="pt-6 font-mono text-[10px] text-slate-600">
+              TTD : ( ____________________ )
+            </div>
+          </div>
+
+          <!-- Kolom 2: Diketahui Oleh 1 (Supervisor / Atasan Bagian) -->
+          <div class="border border-slate-300 p-2.5 rounded bg-slate-50/30 flex flex-col justify-between min-h-[140px]">
+            <div>
+              <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Pihak Atasan Langsung :</p>
+              <div class="text-xs font-bold text-black" id="bast-known-1-title">DIKETAHUI OLEH 1 :</div>
+              <div class="text-[10px] text-slate-600 mt-0.5" id="bast-known-1-name">Supervisor / Atasan Bagian</div>
+            </div>
+            <div class="pt-6 font-mono text-[10px] text-slate-600">
+              ( ____________________ )
+            </div>
+          </div>
+
+          <!-- Kolom 3: Diketahui Oleh 2 (Pimpinan / GA-IT) -->
+          <div class="border border-slate-300 p-2.5 rounded bg-slate-50/30 flex flex-col justify-between min-h-[140px]">
+            <div>
+              <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Pihak Pengelola Fasilitas :</p>
+              <div class="text-xs font-bold text-black" id="bast-known-2-title">DIKETAHUI OLEH 2 :</div>
+              <div class="text-[10px] text-slate-600 mt-0.5" id="bast-known-2-name">GA & IT Management</div>
+            </div>
+            <div class="pt-6 font-mono text-[10px] text-slate-600">
+              ( ____________________ )
+            </div>
+          </div>
+        </div>
+
+        <!-- Klausul Pernyataan Sadar Tanpa Paksaan -->
+        <div class="border-2 border-black p-2.5 text-center uppercase font-bold text-[10px] md:text-[11px] font-sans tracking-wide leading-tight bg-slate-50 text-black">
+          TELAH MEMBACA DAN MEMAHAMI FASILITAS PERUSAHAAN YANG DI BERIKAN TANGGUNG JAWAB KEPADA SAYA, DENGAN KONDISI SADAR TANPA ADA PAKSAAN DARI PIHAK MANAPUN.
+        </div>
+
+        <!-- Footer Document Prepared By -->
+        <div class="flex items-center justify-between text-[10px] text-slate-600 font-mono pt-1 border-t border-slate-300">
+          <span id="bast-footer-code">Asset ID: IT-AST-001</span>
+          <span id="bast-footer-prepared">Prepared by Admin • 2026-11-23</span>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1253,18 +1450,47 @@
           </select>
         </div>
 
-        <div id="handover-user-group">
-          <label for="handover-target-user" class="block text-xs font-semibold text-navy-800 mb-1">Pilih Karyawan Penerima *</label>
-          <select id="handover-target-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
+        <div id="handover-user-group" class="space-y-3">
+          <div>
+            <label for="handover-target-employee" class="block text-xs font-semibold text-navy-800 mb-1">Pilih Pemegang Aset (Master PIC / Karyawan) *</label>
+            <select id="handover-target-employee" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
+          </div>
+          <div>
+            <label for="handover-target-user" class="block text-xs font-semibold text-navy-800 mb-1">Akun Login User Terkait (Opsional)</label>
+            <select id="handover-target-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="">-- Tidak Ditautkan ke Akun Login --</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label for="handover-condition" class="block text-xs font-semibold text-navy-800 mb-1">Kondisi Fisik Saat Serah Terima</label>
-          <select id="handover-condition" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
-            <option value="Baik (Normal)">Baik (Normal)</option>
-            <option value="Ada Lecet Pemakaian">Ada Lecet Pemakaian</option>
-            <option value="Perlu Servis">Perlu Servis</option>
-          </select>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="handover-bast-template" class="block text-xs font-semibold text-navy-800 mb-1">Format Template BAST *</label>
+            <select id="handover-bast-template" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="gadget">Fasilitas HP / Gadget</option>
+              <option value="general">BAST Aset Kantor Umum</option>
+            </select>
+          </div>
+          <div>
+            <label for="handover-condition" class="block text-xs font-semibold text-navy-800 mb-1">Kondisi Fisik Saat Serah Terima</label>
+            <select id="handover-condition" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="Baru (Include Charger / Kelengkapan)">Baru (Include Charger / Kelengkapan)</option>
+              <option value="Baik (Normal)">Baik (Normal)</option>
+              <option value="Ada Lecet Pemakaian">Ada Lecet Pemakaian</option>
+              <option value="Perlu Servis">Perlu Servis</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="handover-known-1" class="block text-xs font-semibold text-navy-800 mb-1">Diketahui Oleh 1 (Atasan / SPV)</label>
+            <input id="handover-known-1" type="text" value="Supervisor / Manager Bagian" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label for="handover-known-2" class="block text-xs font-semibold text-navy-800 mb-1">Diketahui Oleh 2 (Pimpinan / GA-IT)</label>
+            <input id="handover-known-2" type="text" value="GA & IT Management" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
         </div>
 
         <div>
@@ -1418,6 +1644,86 @@
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
           <button type="button" onclick="closeModal('modal-add-category')" class="px-3.5 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Batal</button>
           <button type="submit" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">Simpan Kategori</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TAMBAH LOKASI KANTOR -->
+  <div id="modal-add-location" role="dialog" aria-modal="true" aria-labelledby="modal-title-add-location" class="modal-overlay hidden">
+    <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-linen-200">
+        <h3 id="modal-title-add-location" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-map-location-dot text-amber-600" aria-hidden="true"></i> Tambah Lokasi Kantor
+        </h3>
+        <button onclick="closeModal('modal-add-location')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal tambah lokasi"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-location" onsubmit="submitNewLocation(event)" class="space-y-3">
+        <div>
+          <label for="new-location-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama Lokasi / Ruangan *</label>
+          <input id="new-location-name" type="text" placeholder="Misal: Head Office - Lt 2 Ruang Rapat Bromo" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500" required>
+        </div>
+
+        <div>
+          <label for="new-location-building" class="block text-xs font-semibold text-navy-800 mb-1">Gedung / Lantai</label>
+          <input id="new-location-building" type="text" placeholder="Misal: Gedung Utama Lantai 2" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div>
+          <label for="new-location-desc" class="block text-xs font-semibold text-navy-800 mb-1">Keterangan / Deskripsi</label>
+          <input id="new-location-desc" type="text" placeholder="Misal: Ruang Rapat Utama & Fasilitas Presentasi" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
+          <button type="button" onclick="closeModal('modal-add-location')" class="px-3.5 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">Simpan Lokasi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TAMBAH PIC / KARYAWAN -->
+  <div id="modal-add-employee" role="dialog" aria-modal="true" aria-labelledby="modal-title-add-employee" class="modal-overlay hidden">
+    <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-linen-200">
+        <h3 id="modal-title-add-employee" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-id-card text-amber-600" aria-hidden="true"></i> Tambah Karyawan / PIC
+        </h3>
+        <button onclick="closeModal('modal-add-employee')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal tambah karyawan"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <form id="form-employee" onsubmit="submitNewEmployee(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="new-emp-nik" class="block text-xs font-semibold text-navy-800 mb-1">NIK / ID Karyawan</label>
+            <input id="new-emp-nik" type="text" placeholder="Misal: EMP-006" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label for="new-emp-phone" class="block text-xs font-semibold text-navy-800 mb-1">No. HP / WhatsApp</label>
+            <input id="new-emp-phone" type="text" placeholder="081703803761" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <div>
+          <label for="new-emp-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama Lengkap Karyawan *</label>
+          <input id="new-emp-name" type="text" placeholder="Misal: Eva Cecil" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" required>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="new-emp-dept" class="block text-xs font-semibold text-navy-800 mb-1">Bagian / Departemen *</label>
+            <input id="new-emp-dept" type="text" placeholder="Misal: Support Indent" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
+          </div>
+          <div>
+            <label for="new-emp-position" class="block text-xs font-semibold text-navy-800 mb-1">Jabatan</label>
+            <input id="new-emp-position" type="text" placeholder="Misal: Staff Indent" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
+          <button type="button" onclick="closeModal('modal-add-employee')" class="px-3.5 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">Simpan Karyawan</button>
         </div>
       </form>
     </div>
@@ -1848,9 +2154,17 @@
           </select>
         </div>
 
-        <div id="batch-handover-user-group">
-          <label for="batch-handover-target-user" class="block text-xs font-semibold text-navy-800 mb-1">Karyawan Penerima (User) *</label>
-          <select id="batch-handover-target-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
+        <div id="batch-handover-user-group" class="space-y-3">
+          <div>
+            <label for="batch-handover-target-employee" class="block text-xs font-semibold text-navy-800 mb-1">Pilih Pemegang (Master PIC / Karyawan) *</label>
+            <select id="batch-handover-target-employee" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
+          </div>
+          <div>
+            <label for="batch-handover-target-user" class="block text-xs font-semibold text-navy-800 mb-1">User Akun Login Terkait (Opsional)</label>
+            <select id="batch-handover-target-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="">-- Tidak Ditautkan ke Akun Login --</option>
+            </select>
+          </div>
         </div>
 
         <div>
@@ -1950,14 +2264,20 @@
           </table>
         </div>
 
-        <!-- Ketentuan -->
-        <div class="space-y-1 text-[10.5px] leading-relaxed text-slate-700">
-          <p><strong>Ketentuan dan Tanggung Jawab:</strong></p>
-          <ol class="list-decimal list-inside space-y-0.5">
-            <li>Pihak Kedua bertanggung jawab penuh atas pemeliharaan dan keamanan fisik unit-unit tersebut selama masa penugasan.</li>
-            <li>Kerusakan atau kehilangan wajib segera dilaporkan ke bagian IT & GA maksimal dalam 1x24 jam kerja.</li>
-            <li>Unit wajib dikembalikan ke bagian GA/IT dalam keadaan baik apabila terjadi mutasi, rotasi, atau pengunduran diri.</li>
+        <!-- 4 Butir Ketentuan dan Tanggung Jawab Mutlak -->
+        <div class="space-y-1 text-[11px] leading-relaxed text-black font-sans uppercase">
+          <p class="font-bold">BERHUBUNG INI ADALAH FASILITAS DARI PERUSAHAAN, MAKA PERUSAHAAN MENENTUKAN ATURAN SBB :</p>
+          <ol class="list-decimal list-outside ml-5 space-y-1 text-[11px] font-sans font-medium text-justify">
+            <li>INVENTARIS ASET HARUS DI TANGGUNG JAWAB OLEH NAMA YANG TERTERA DI FORM INI.</li>
+            <li>DILARANG MEMBAWA PULANG INVENTARIS ASET, KECUALI SUDAH DI IJIN KAN OLEH PIMPINAN / MANAGER / SUPERVISOR MASING MASING BAGIAN *</li>
+            <li>PEMEGANG INVENTARIS BERTANGGUNG JAWAB TERHADAP KONDISI ASET, JIKA ADA KERUSAKAN MAKA AKAN DIBEBANKAN BIAYA PERBAIKAN KEPADA PEMEGANG INVENTARIS SEBESAR 50% .</li>
+            <li>JIKA ASET HILANG MAKA PENGANTIAN UNIT ASET DI TANGGUNG OLEH PEMEGANG 100%</li>
           </ol>
+        </div>
+
+        <!-- Klausul Pernyataan Sadar Tanpa Paksaan -->
+        <div class="border-2 border-black p-2.5 text-center uppercase font-bold text-[10px] md:text-[11px] font-sans tracking-wide leading-tight bg-slate-50 text-black">
+          TELAH MEMBACA DAN MEMAHAMI FASILITAS PERUSAHAAN YANG DI BERIKAN TANGGUNG JAWAB KEPADA SAYA, DENGAN KONDISI SADAR TANPA ADA PAKSAAN DARI PIHAK MANAPUN.
         </div>
 
         <!-- Kolom Tanda Tangan 3 Pihak -->
@@ -2087,6 +2407,9 @@
       },
       categories: [],
       users: [],
+      locations: [],
+      employees: [],
+      filteredEmployees: [],
       assets: [],
       filteredAssets: [],
       selectedAssetIds: new Set(),
@@ -2116,6 +2439,8 @@
       await loadSettings();
       await loadCategories();
       await loadUsers();
+      await loadLocations();
+      await loadEmployees();
       await refreshAllData();
       initDragAndDrop();
     });
@@ -2491,6 +2816,241 @@
       }
     }
 
+    // ============================================================
+    // MASTER LOKASI
+    // ============================================================
+    async function loadLocations() {
+      try {
+        const res = await fetch('/api/locations');
+        state.locations = await res.json();
+        renderLocationsTable(state.locations);
+
+        // Populate location dropdown in asset registration
+        const locSelect = document.getElementById('new-location-select');
+        if (locSelect) {
+          locSelect.innerHTML = '<option value="">-- Pilih Dari Master Lokasi --</option>' +
+            state.locations.map(l => `<option value="${l.id}">${escapeHtml(l.name)}${l.building_floor ? ' (' + escapeHtml(l.building_floor) + ')' : ''}</option>`).join('');
+        }
+      } catch (err) {
+        console.error('Error loading locations:', err);
+      }
+    }
+
+    function renderLocationsTable(items) {
+      const tbody = document.getElementById('locations-table-body');
+      if (!tbody) return;
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-navy-700/60 text-xs">Belum ada master lokasi. Klik "+ Tambah Lokasi" untuk mendaftarkan.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(l => `
+        <tr>
+          <td class="td-cell font-bold text-navy-900">${escapeHtml(l.name)}</td>
+          <td class="td-cell text-xs text-navy-800">${escapeHtml(l.building_floor || '-')}</td>
+          <td class="td-cell text-xs text-navy-700/80">${escapeHtml(l.description || '-')}</td>
+          <td class="td-cell text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-linen-100 text-navy-900 border border-linen-300">
+              ${Number(l.asset_count || 0)} Aset
+            </span>
+          </td>
+          <td class="td-cell text-right">
+            <button onclick="deleteLocation(${l.id})" aria-label="Hapus lokasi ${escapeHtml(l.name)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 rounded transition">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function syncLocationInput() {
+      const sel = document.getElementById('new-location-select');
+      const hidden = document.getElementById('new-location');
+      if (sel && hidden) {
+        hidden.value = sel.selectedOptions[0]?.text || 'Head Office';
+      }
+    }
+
+    async function submitNewLocation(e) {
+      e.preventDefault();
+      const name = document.getElementById('new-location-name').value.trim();
+      const building_floor = document.getElementById('new-location-building').value.trim();
+      const description = document.getElementById('new-location-desc').value.trim();
+
+      try {
+        const res = await fetch('/api/locations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, building_floor, description, userName: state.currentUser?.name })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast('Lokasi kantor baru berhasil ditambahkan!');
+        closeModal('modal-add-location');
+        document.getElementById('form-location').reset();
+        await loadLocations();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteLocation(id) {
+      if (!confirm('Hapus lokasi ini dari master?')) return;
+      try {
+        const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast('Lokasi kantor berhasil dihapus');
+        await loadLocations();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ============================================================
+    // MASTER PIC / KARYAWAN (DECOUPLED FROM USERS LOGIN)
+    // ============================================================
+    async function loadEmployees() {
+      try {
+        const res = await fetch('/api/employees');
+        state.employees = await res.json();
+        state.filteredEmployees = state.employees;
+        renderEmployeesTable(state.employees);
+
+        // Populate department filter in settings
+        const deptSelect = document.getElementById('filter-employee-dept');
+        if (deptSelect) {
+          const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))].sort();
+          deptSelect.innerHTML = '<option value="">-- Semua Bagian / Departemen --</option>' +
+            depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+        }
+
+        // Populate employee dropdown in asset registration
+        const empSelect = document.getElementById('new-assigned-employee');
+        if (empSelect) {
+          empSelect.innerHTML = '<option value="">-- Belum Ada PIC (Di Gudang) --</option>' +
+            state.employees.map(e => `<option value="${e.id}">${escapeHtml(e.name)} (${escapeHtml(e.department)}${e.phone_number ? ' - ' + escapeHtml(e.phone_number) : ''})</option>`).join('');
+        }
+
+        // Populate employee dropdown in handover modal
+        const handoverEmpSelect = document.getElementById('handover-target-employee');
+        if (handoverEmpSelect) {
+          handoverEmpSelect.innerHTML = state.employees.map(e => 
+            `<option value="${e.id}">${escapeHtml(e.name)} (${escapeHtml(e.department)}${e.phone_number ? ' - ' + escapeHtml(e.phone_number) : ''})</option>`
+          ).join('');
+        }
+
+        // Populate employee dropdown in batch handover modal
+        const batchEmpSelect = document.getElementById('batch-handover-target-employee');
+        if (batchEmpSelect) {
+          batchEmpSelect.innerHTML = state.employees.map(e => 
+            `<option value="${e.id}">${escapeHtml(e.name)} (${escapeHtml(e.department)}${e.phone_number ? ' - ' + escapeHtml(e.phone_number) : ''})</option>`
+          ).join('');
+        }
+      } catch (err) {
+        console.error('Error loading employees:', err);
+      }
+    }
+
+    function renderEmployeesTable(items) {
+      const tbody = document.getElementById('employees-table-body');
+      if (!tbody) return;
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-navy-700/60 text-xs">Belum ada data karyawan / PIC. Klik "+ Tambah Karyawan / PIC" untuk menambahkan.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(e => `
+        <tr>
+          <td class="td-cell font-mono text-xs font-bold text-navy-800">${escapeHtml(e.nik || '-')}</td>
+          <td class="td-cell font-bold text-navy-900">${escapeHtml(e.name)}</td>
+          <td class="td-cell">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200">${escapeHtml(e.department)}</span>
+          </td>
+          <td class="td-cell text-xs text-navy-700">${escapeHtml(e.position || '-')}</td>
+          <td class="td-cell font-mono text-xs text-navy-800">${escapeHtml(e.phone_number || '-')}</td>
+          <td class="td-cell text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${Number(e.assigned_asset_count || 0) > 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-linen-100 text-navy-700 border border-linen-200'}">
+              ${Number(e.assigned_asset_count || 0)} Unit
+            </span>
+          </td>
+          <td class="td-cell text-right">
+            <button onclick="deleteEmployee(${e.id})" aria-label="Hapus karyawan ${escapeHtml(e.name)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 rounded transition">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterEmployeesTable() {
+      const q = (document.getElementById('search-employee-input')?.value || '').toLowerCase().trim();
+      const dept = document.getElementById('filter-employee-dept')?.value || '';
+      
+      let filtered = state.employees;
+      if (dept) {
+        filtered = filtered.filter(e => e.department === dept);
+      }
+      if (q) {
+        filtered = filtered.filter(e => 
+          (e.name || '').toLowerCase().includes(q) ||
+          (e.nik || '').toLowerCase().includes(q) ||
+          (e.department || '').toLowerCase().includes(q) ||
+          (e.position || '').toLowerCase().includes(q) ||
+          (e.phone_number || '').toLowerCase().includes(q)
+        );
+      }
+      renderEmployeesTable(filtered);
+    }
+
+    async function submitNewEmployee(e) {
+      e.preventDefault();
+      const nik = document.getElementById('new-emp-nik').value.trim();
+      const name = document.getElementById('new-emp-name').value.trim();
+      const department = document.getElementById('new-emp-dept').value.trim();
+      const position = document.getElementById('new-emp-position').value.trim();
+      const phone_number = document.getElementById('new-emp-phone').value.trim();
+
+      try {
+        const res = await fetch('/api/employees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nik, name, department, position, phone_number, userName: state.currentUser?.name })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast(`Karyawan/PIC ${name} berhasil didaftarkan!`);
+        closeModal('modal-add-employee');
+        document.getElementById('form-employee').reset();
+        await loadEmployees();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteEmployee(id) {
+      if (!confirm('Hapus karyawan ini dari daftar PIC?')) return;
+      try {
+        const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast('Karyawan/PIC berhasil dihapus');
+        await loadEmployees();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
     // Activity Logs
     async function loadActivityLogs() {
       try {
@@ -2518,14 +3078,20 @@
 
     // Submenu Settings Switcher
     function switchSettingsTab(tab) {
-      ['logo', 'users', 'categories', 'label'].forEach(t => {
-        document.getElementById(`settab-${t}`).className = 'px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition';
-        document.getElementById(`settings-view-${t}`).classList.add('hidden');
+      ['logo', 'users', 'categories', 'label', 'locations', 'employees'].forEach(t => {
+        const btn = document.getElementById(`settab-${t}`);
+        const view = document.getElementById(`settings-view-${t}`);
+        if (btn) btn.className = 'px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition';
+        if (view) view.classList.add('hidden');
       });
-      document.getElementById(`settab-${tab}`).className = 'px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition';
-      document.getElementById(`settings-view-${tab}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`settab-${tab}`);
+      const activeView = document.getElementById(`settings-view-${tab}`);
+      if (activeBtn) activeBtn.className = 'px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition';
+      if (activeView) activeView.classList.remove('hidden');
 
       if (tab === 'label') renderCanvasQR();
+      if (tab === 'locations') loadLocations();
+      if (tab === 'employees') loadEmployees();
     }
 
     // ============================================================
@@ -2717,31 +3283,142 @@
     }
 
     // ============================================================
-    // BAST GENERATOR (BERITA ACARA SERAH TERIMA)
+    // BAST GENERATOR (BERITA ACARA SERAH TERIMA) - PHOTO MATCHED
     // ============================================================
-    function openBASTModal(assetId) {
+    let currentBastAsset = null;
+    let currentBastTemplate = 'gadget';
+
+    function switchBastTemplate(tpl) {
+      currentBastTemplate = tpl;
+      const btnGadget = document.getElementById('btn-bast-tpl-gadget');
+      const btnGeneral = document.getElementById('btn-bast-tpl-general');
+      const pGadget = document.getElementById('bast-preamble-gadget');
+      const pGeneral = document.getElementById('bast-preamble-general');
+      const titleEl = document.getElementById('bast-title');
+
+      if (tpl === 'gadget') {
+        if (btnGadget) btnGadget.className = 'px-2.5 py-1 rounded-md font-bold transition bg-amber-500 text-navy-950 shadow-sm';
+        if (btnGeneral) btnGeneral.className = 'px-2.5 py-1 rounded-md font-bold text-navy-700 hover:text-navy-950 transition';
+        if (pGadget) pGadget.classList.remove('hidden');
+        if (pGeneral) pGeneral.classList.add('hidden');
+        if (titleEl) titleEl.innerText = 'FASILITAS HANDPHONE DARI PERUSAHAAN';
+
+        document.getElementById('bast-label-type').innerText = 'TYPE HP/TAB :';
+        document.getElementById('bast-label-phone').innerText = 'NO HP/TAB :';
+        document.getElementById('bast-label-price').innerText = 'HARGA UNIT HP :';
+        document.getElementById('bast-label-package').innerText = 'PAKET NOMOR HP :';
+        document.getElementById('bast-label-holder').innerText = 'NAMA PEMEGANG HP/TAB :';
+        document.getElementById('bast-label-condition').innerText = 'KONDISI HP/TAB SAAT DI BERIKAN :';
+        document.querySelectorAll('.bast-item-term').forEach((el, idx) => {
+          el.innerText = (idx === 0) ? 'HANDPHONE' : 'HP';
+        });
+      } else {
+        if (btnGeneral) btnGeneral.className = 'px-2.5 py-1 rounded-md font-bold transition bg-amber-500 text-navy-950 shadow-sm';
+        if (btnGadget) btnGadget.className = 'px-2.5 py-1 rounded-md font-bold text-navy-700 hover:text-navy-950 transition';
+        if (pGadget) pGadget.classList.add('hidden');
+        if (pGeneral) pGeneral.classList.remove('hidden');
+        if (titleEl) titleEl.innerText = 'BERITA ACARA SERAH TERIMA ASET KANTOR';
+
+        document.getElementById('bast-label-type').innerText = 'NAMA / TIPE ASET :';
+        document.getElementById('bast-label-phone').innerText = 'KODE TAG ASET :';
+        document.getElementById('bast-label-price').innerText = 'NILAI / HARGA ASET :';
+        document.getElementById('bast-label-package').innerText = 'KATEGORI / DIVISI :';
+        document.getElementById('bast-label-holder').innerText = 'NAMA PEMEGANG ASET :';
+        document.getElementById('bast-label-condition').innerText = 'KONDISI SAAT DI BERIKAN :';
+        document.querySelectorAll('.bast-item-term').forEach(el => {
+          el.innerText = 'ASET';
+        });
+      }
+
+      if (currentBastAsset) {
+        populateBastFields(currentBastAsset, tpl);
+      }
+    }
+
+    function populateBastFields(a, tpl) {
+      const comp = state.settings.general.company_name || 'PT. JAYA MAKMUR INDONESIA';
+      document.getElementById('bast-company-header').innerText = `TGC OF ${comp.toUpperCase()}`;
+
+      const specs = a.specs || {};
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' });
+      const fullDateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      
+      const bastDateEl = document.getElementById('bast-date-str');
+      if (bastDateEl) bastDateEl.innerText = fullDateStr;
+      document.getElementById('bast-given-date').innerText = dateStr;
+
+      const recipientName = a.employee_name || a.assigned_to_name || 'Eva Cecil';
+      const recipientDept = a.employee_department || (a.category === 'IT' ? 'Support Indent' : 'Operasional');
+      const conditionStr = specs.extra || (specs.condition || 'Baru, include Charger');
+
+      document.getElementById('bast-holder-name').innerText = recipientName;
+      document.getElementById('bast-holder-dept').innerText = recipientDept;
+      document.getElementById('bast-holder-condition').innerText = conditionStr;
+
+      // Signatures
+      document.getElementById('bast-sign-name').innerText = `NAMA : ${recipientName}`;
+      document.getElementById('bast-sign-dept').innerText = `BAGIAN : ${recipientDept}`;
+
+      if (tpl === 'gadget') {
+        document.getElementById('bast-unit-type').innerText = a.name || '-';
+        document.getElementById('bast-unit-phone').innerText = specs.phone_number || a.employee_phone || a.serial_number || '-';
+        document.getElementById('bast-unit-price').innerText = specs.unit_price ? `Rp. ${Number(specs.unit_price).toLocaleString('id-ID')}` : 'Rp. -';
+        document.getElementById('bast-unit-package').innerText = specs.sim_package || 'Biz Starter';
+      } else {
+        document.getElementById('bast-unit-type').innerText = a.name || '-';
+        document.getElementById('bast-unit-phone').innerText = a.code || '-';
+        document.getElementById('bast-unit-price').innerText = specs.unit_price ? `Rp. ${Number(specs.unit_price).toLocaleString('id-ID')}` : 'Rp. -';
+        document.getElementById('bast-unit-package').innerText = `${a.category} • ${a.subcategory}`;
+      }
+
+      document.getElementById('bast-unit-serial').innerText = a.serial_number || specs.imei || '-';
+      document.getElementById('bast-unit-location').innerText = a.location_name || a.location || 'Head Office';
+      document.getElementById('bast-doc-number').innerText = `Nomor: BAST/${now.getFullYear()}/${String(a.id).padStart(4, '0')}`;
+      document.getElementById('bast-footer-code').innerText = `Asset Code: ${a.code}`;
+      document.getElementById('bast-footer-prepared').innerText = `Prepared by ${state.currentUser?.name || 'Admin'} ${now.toISOString().split('T')[0]}`;
+    }
+
+    async function openBASTModal(assetId) {
       const a = state.assets.find(item => item.id === assetId);
       if (!a) return;
+      currentBastAsset = a;
 
-      const comp = state.settings.general.company_name || 'PT NUSA PERSADA UTAMA';
-      document.getElementById('bast-company-name').innerText = comp;
-      document.getElementById('bast-asset-code').innerText = a.code;
-      document.getElementById('bast-asset-name').innerText = a.name;
-      document.getElementById('bast-asset-serial').innerText = a.serial_number || '-';
+      // Default signatures
+      document.getElementById('bast-known-1-name').innerText = 'Supervisor / Atasan Bagian';
+      document.getElementById('bast-known-2-name').innerText = 'GA & IT Management';
 
-      const specsText = Object.entries(a.specs || {}).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join(', ') || '-';
-      document.getElementById('bast-asset-specs').innerText = specsText;
+      // Check if latest history handover had specific template or known_by
+      try {
+        const res = await fetch(`/api/assets/${assetId}/history`);
+        if (res.ok) {
+          const hData = await res.json();
+          if (hData.handovers && hData.handovers.length > 0) {
+            const latest = hData.handovers[0];
+            if (latest.known_by_1) document.getElementById('bast-known-1-name').innerText = latest.known_by_1;
+            if (latest.known_by_2) document.getElementById('bast-known-2-name').innerText = latest.known_by_2;
+            if (latest.condition) document.getElementById('bast-holder-condition').innerText = latest.condition;
+            if (latest.to_employee_name) {
+              document.getElementById('bast-holder-name').innerText = latest.to_employee_name;
+              document.getElementById('bast-sign-name').innerText = `NAMA : ${latest.to_employee_name}`;
+            }
+            if (latest.to_employee_dept) {
+              document.getElementById('bast-holder-dept').innerText = latest.to_employee_dept;
+              document.getElementById('bast-sign-dept').innerText = `BAGIAN : ${latest.to_employee_dept}`;
+            }
+            if (latest.bast_template) {
+              switchBastTemplate(latest.bast_template);
+              openModal('modal-bast');
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load asset history for BAST:', e);
+      }
 
-      const accs = (a.linked_accessories || []).map(acc => acc.name).join(', ') || 'Unit Utama Tanpa Tambahan';
-      document.getElementById('bast-asset-accs').innerText = accs;
-
-      document.getElementById('bast-recipient-name').innerText = a.assigned_to_name || '(Belum Ditentukan)';
-      document.getElementById('bast-pic-name').innerText = state.currentUser?.name || 'Rian Pratama';
-
-      const now = new Date();
-      document.getElementById('bast-date-str').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      document.getElementById('bast-doc-number').innerText = `Nomor: BAST/${now.getFullYear()}/${String(a.id).padStart(3, '0')}`;
-
+      const isGadget = a.subcategory === 'smartphone' || a.subcategory === 'tablet' || (a.category === 'IT' && a.subcategory === 'laptop');
+      switchBastTemplate(isGadget ? 'gadget' : 'general');
       openModal('modal-bast');
     }
 
@@ -2758,6 +3435,34 @@
       const displayName = name || asset?.name || '';
       document.getElementById('handover-asset-id').value = assetId;
       document.getElementById('handover-asset-label').innerText = `[${displayCode}] ${displayName}`;
+
+      // Populate Master PIC / Employee options
+      const empSelect = document.getElementById('handover-target-employee');
+      if (empSelect) {
+        empSelect.innerHTML = state.employees.map(e => 
+          `<option value="${e.id}" ${asset && asset.assigned_to_employee_id === e.id ? 'selected' : ''}>${escapeHtml(e.name)} (${escapeHtml(e.department)}${e.phone_number ? ' - ' + escapeHtml(e.phone_number) : ''})</option>`
+        ).join('');
+      }
+
+      // Populate User login options
+      const userSelect = document.getElementById('handover-target-user');
+      if (userSelect) {
+        userSelect.innerHTML = '<option value="">-- Tidak Ditautkan ke Akun Login --</option>' +
+          state.users.map(u => `<option value="${u.id}" ${asset && asset.assigned_to_user_id === u.id ? 'selected' : ''}>${escapeHtml(u.name)} (${escapeHtml((u.role || '').toUpperCase())})</option>`).join('');
+      }
+
+      // Auto select template based on category
+      const tplSelect = document.getElementById('handover-bast-template');
+      if (tplSelect && asset) {
+        tplSelect.value = (asset.subcategory === 'smartphone' || asset.subcategory === 'tablet') ? 'gadget' : 'general';
+      }
+
+      // Reset defaults for known_by
+      const k1 = document.getElementById('handover-known-1');
+      if (k1) k1.value = 'Supervisor / Manager Bagian';
+      const k2 = document.getElementById('handover-known-2');
+      if (k2) k2.value = 'GA & IT Management';
+
       openModal('modal-handover');
     }
 
@@ -2775,7 +3480,11 @@
       e.preventDefault();
       const asset_id = document.getElementById('handover-asset-id').value;
       const action_type = document.getElementById('handover-action').value;
-      const to_user_id = document.getElementById('handover-target-user').value || null;
+      const to_employee_id = document.getElementById('handover-target-employee')?.value || null;
+      const to_user_id = document.getElementById('handover-target-user')?.value || null;
+      const bast_template = document.getElementById('handover-bast-template')?.value || 'general';
+      const known_by_1 = document.getElementById('handover-known-1')?.value?.trim() || null;
+      const known_by_2 = document.getElementById('handover-known-2')?.value?.trim() || null;
       const condition = document.getElementById('handover-condition').value;
       const notes = document.getElementById('handover-notes').value.trim();
 
@@ -2785,7 +3494,11 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action_type,
-            to_user_id: action_type === 'checkout' ? to_user_id : null,
+            to_employee_id: action_type === 'checkout' ? (to_employee_id ? parseInt(to_employee_id, 10) : null) : null,
+            to_user_id: action_type === 'checkout' ? (to_user_id ? parseInt(to_user_id, 10) : null) : null,
+            bast_template,
+            known_by_1,
+            known_by_2,
             condition,
             notes,
             userName: state.currentUser?.name
@@ -2802,6 +3515,8 @@
         showToast(`Mutasi berhasil dicatat (${data.bast_number})`);
         closeModal('modal-handover');
         await refreshAllData();
+        // Automatically offer to view the generated BAST!
+        openBASTModal(parseInt(asset_id, 10));
       } catch (err) {
         alert(err.message);
       }
@@ -2844,10 +3559,10 @@
           : hData.handovers.map(h => `
             <div class="p-2.5 rounded bg-linen-100 border border-linen-200 text-xs">
               <div class="flex items-center justify-between font-bold text-navy-900">
-                <span>${h.action_type === 'checkout' ? 'Diserahkan ke: ' + escapeHtml(h.to_user_name || 'Staff') : 'Dikembalikan ke Gudang'}</span>
+                <span>${h.action_type === 'checkout' ? 'Diserahkan ke: ' + escapeHtml(h.to_employee_name ? `${h.to_employee_name} (${h.to_employee_dept || 'PIC'})` : (h.to_user_name || 'Staff')) : 'Dikembalikan ke Gudang'}</span>
                 <span class="text-[10px] font-mono text-amber-600 font-bold">${escapeHtml(h.bast_number || '-')}</span>
               </div>
-              <div class="text-[11px] text-navy-700/70 mt-0.5">Kondisi: ${escapeHtml(h.condition)} • ${new Date(h.created_at).toLocaleDateString('id-ID')}</div>
+              <div class="text-[11px] text-navy-700/70 mt-0.5">Kondisi: ${escapeHtml(h.condition)} • ${new Date(h.created_at).toLocaleDateString('id-ID')}${h.known_by_1 ? ` • SPV: ${escapeHtml(h.known_by_1)}` : ''}</div>
               ${h.notes ? `<div class="text-[10px] text-navy-800 mt-1 italic">Catatan: ${escapeHtml(h.notes)}</div>` : ''}
             </div>
           `).join('');
@@ -2902,7 +3617,7 @@
     }
 
     async function refreshAllData() {
-      await Promise.all([loadStats(), loadAssets(), loadAccessories(), loadConsumables(), loadTickets()]);
+      await Promise.all([loadStats(), loadAssets(), loadAccessories(), loadConsumables(), loadTickets(), loadLocations(), loadEmployees()]);
     }
 
     // Dynamic Form Category Setup from Database
@@ -2926,12 +3641,15 @@
           <div><label for="spec-storage" class="block text-xs font-semibold text-navy-800 mb-1">Storage</label><input id="spec-storage" type="text" placeholder="512GB SSD" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
           <div><label for="spec-os" class="block text-xs font-semibold text-navy-800 mb-1">OS</label><input id="spec-os" type="text" placeholder="Windows 11 / macOS" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
-      } else if (subcat === 'smartphone') {
+      } else if (subcat === 'smartphone' || subcat === 'tablet') {
         container.innerHTML = `
+          <div><label for="spec-phone-number" class="block text-xs font-semibold text-navy-800 mb-1">Nomor HP / SIM (BAST)</label><input id="spec-phone-number" type="text" placeholder="Misal: 081703803761" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-mono font-bold text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-sim-package" class="block text-xs font-semibold text-navy-800 mb-1">Paket Provider HP (BAST)</label><input id="spec-sim-package" type="text" placeholder="Misal: Biz Starter / Pascabayar" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-unit-price" class="block text-xs font-semibold text-navy-800 mb-1">Harga Unit HP (Rp)</label><input id="spec-unit-price" type="text" placeholder="Misal: 2450000" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
           <div><label for="spec-ram-storage" class="block text-xs font-semibold text-navy-800 mb-1">RAM / Storage</label><input id="spec-ram-storage" type="text" placeholder="8GB / 256GB" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
-          <div><label for="spec-imei" class="block text-xs font-semibold text-navy-800 mb-1">IMEI</label><input id="spec-imei" type="text" placeholder="15 digit IMEI" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
-          <div><label for="spec-os" class="block text-xs font-semibold text-navy-800 mb-1">OS</label><input id="spec-os" type="text" placeholder="Android 14 / iOS 17" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
-          <div><label for="spec-extra" class="block text-xs font-semibold text-navy-800 mb-1">Warna</label><input id="spec-extra" type="text" placeholder="Black" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-imei" class="block text-xs font-semibold text-navy-800 mb-1">IMEI 1 / 2</label><input id="spec-imei" type="text" placeholder="15 digit IMEI" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-os" class="block text-xs font-semibold text-navy-800 mb-1">OS</label><input id="spec-os" type="text" placeholder="Android 14 / ColorOS" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-extra" class="block text-xs font-semibold text-navy-800 mb-1">Kondisi / Kelengkapan</label><input id="spec-extra" type="text" placeholder="Baru, include Charger" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
       } else if (subcat === 'ac') {
         container.innerHTML = `
@@ -2962,14 +3680,24 @@
       const name = document.getElementById('new-name').value.trim();
       const serial_number = document.getElementById('new-serial').value.trim();
       const status = document.getElementById('new-status').value;
-      const location = document.getElementById('new-location').value.trim();
-      const assigned_to_user_id = document.getElementById('new-assigned-user').value || null;
+      const location_id = document.getElementById('new-location-select')?.value || null;
+      const location = document.getElementById('new-location-select')?.selectedOptions?.[0]?.text || document.getElementById('new-location')?.value || 'Head Office';
+      const assigned_to_employee_id = document.getElementById('new-assigned-employee')?.value || null;
+      const assigned_to_user_id = document.getElementById('new-assigned-user')?.value || null;
 
       let specs = {};
       if (subcategory === 'laptop' || subcategory === 'desktop') {
         specs = { processor: document.getElementById('spec-cpu')?.value || '', ram: document.getElementById('spec-ram')?.value || '', storage: document.getElementById('spec-storage')?.value || '', os: document.getElementById('spec-os')?.value || '' };
-      } else if (subcategory === 'smartphone') {
-        specs = { ram_storage: document.getElementById('spec-ram-storage')?.value || '', imei: document.getElementById('spec-imei')?.value || '', os: document.getElementById('spec-os')?.value || '', extra: document.getElementById('spec-extra')?.value || '' };
+      } else if (subcategory === 'smartphone' || subcategory === 'tablet') {
+        specs = { 
+          phone_number: document.getElementById('spec-phone-number')?.value || '',
+          sim_package: document.getElementById('spec-sim-package')?.value || '',
+          unit_price: document.getElementById('spec-unit-price')?.value || '',
+          ram_storage: document.getElementById('spec-ram-storage')?.value || '', 
+          imei: document.getElementById('spec-imei')?.value || '', 
+          os: document.getElementById('spec-os')?.value || '', 
+          extra: document.getElementById('spec-extra')?.value || 'Baru, include Charger' 
+        };
       } else if (subcategory === 'ac') {
         specs = { capacity_pk: document.getElementById('spec-pk')?.value || '', refrigerant: document.getElementById('spec-refrigerant')?.value || '', voltage: document.getElementById('spec-volt')?.value || '', outdoor: document.getElementById('spec-outdoor')?.value || '' };
       } else if (subcategory === 'vehicle') {
@@ -2982,7 +3710,20 @@
         const res = await fetch('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: code || undefined, name, category, subcategory, serial_number: serial_number || null, status, location, specs, assigned_to_user_id: assigned_to_user_id ? parseInt(assigned_to_user_id, 10) : null, userName: state.currentUser?.name })
+          body: JSON.stringify({ 
+            code: code || undefined, 
+            name, 
+            category, 
+            subcategory, 
+            serial_number: serial_number || null, 
+            status, 
+            location, 
+            location_id: location_id ? parseInt(location_id, 10) : null,
+            specs, 
+            assigned_to_employee_id: assigned_to_employee_id ? parseInt(assigned_to_employee_id, 10) : null,
+            assigned_to_user_id: assigned_to_user_id ? parseInt(assigned_to_user_id, 10) : null, 
+            userName: state.currentUser?.name 
+          })
         });
         if (!res.ok) {
           const err = await res.json();
@@ -3260,8 +4001,8 @@
             <td class="td-cell"><div class="flex flex-wrap items-center max-w-sm">${specHtml}</div></td>
             <td class="td-cell"><div class="flex flex-wrap items-center max-w-xs">${accHtml}</div></td>
             <td class="td-cell whitespace-nowrap">
-              <div class="font-semibold text-navy-900 text-xs">${a.assigned_to_name ? escapeHtml(a.assigned_to_name) : '<span class="text-navy-700/60 font-normal italic">Gudang / Standby</span>'}</div>
-              <div class="text-[11px] text-navy-700/70 mt-0.5"><i class="fa-solid fa-location-dot text-[9px] text-amber-600"></i> ${escapeHtml(a.location)}</div>
+              <div class="font-semibold text-navy-900 text-xs">${a.employee_name ? `${escapeHtml(a.employee_name)} <span class="text-[10px] text-navy-600 font-normal">(${escapeHtml(a.employee_department || '')})</span>` : (a.assigned_to_name ? escapeHtml(a.assigned_to_name) : '<span class="text-navy-700/60 font-normal italic">Gudang / Standby</span>')}</div>
+              <div class="text-[11px] text-navy-700/70 mt-0.5"><i class="fa-solid fa-location-dot text-[9px] text-amber-600"></i> ${escapeHtml(a.location_name || a.location || 'Head Office')}</div>
             </td>
             <td class="td-cell whitespace-nowrap">
               <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${st.bg}">${escapeHtml(st.label)}</span>
@@ -3455,7 +4196,8 @@
       e.preventDefault();
       const asset_ids = Array.from(state.selectedAssetIds);
       const action_type = document.getElementById('batch-handover-action').value;
-      const to_user_id = document.getElementById('batch-handover-target-user').value || null;
+      const to_employee_id = document.getElementById('batch-handover-target-employee')?.value || null;
+      const to_user_id = document.getElementById('batch-handover-target-user')?.value || null;
       const condition = document.getElementById('batch-handover-condition').value;
       const notes = document.getElementById('batch-handover-notes').value.trim();
 
@@ -3466,7 +4208,8 @@
           body: JSON.stringify({
             asset_ids,
             action_type,
-            to_user_id: action_type === 'checkout' ? to_user_id : null,
+            to_employee_id: action_type === 'checkout' ? (to_employee_id ? parseInt(to_employee_id, 10) : null) : null,
+            to_user_id: action_type === 'checkout' ? (to_user_id ? parseInt(to_user_id, 10) : null) : null,
             condition,
             notes,
             userName: state.currentUser?.name || 'Admin'
@@ -3485,8 +4228,10 @@
 
         // Render Combined BAST Modal
         const selectedAssets = state.assets.filter(a => state.selectedAssetIds.has(a.id));
+        const targetEmp = state.employees.find(e => e.id === parseInt(to_employee_id, 10));
         const targetUser = state.users.find(u => u.id === parseInt(to_user_id, 10));
-        openBatchBASTModal(data.bast_number, selectedAssets, targetUser, condition, action_type);
+        const recipient = targetEmp ? { name: targetEmp.name, role: targetEmp.department } : targetUser;
+        openBatchBASTModal(data.bast_number, selectedAssets, recipient, condition, action_type);
 
         clearAssetSelection();
         await refreshAllData();

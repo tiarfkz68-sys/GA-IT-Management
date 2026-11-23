@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-23
+
+### Added
+- **Master Lokasi Kantor**: Database table `locations`, CRUD REST API (`/api/locations`), UI management card and modal in *Pengaturan & Master*, 60s in-memory TTL caching, and seamless dropdown selection in asset registration.
+- **Master PIC / Karyawan (Decoupled from Login Users)**: Independent `employees` database table, CRUD REST API (`/api/employees`), department filtering, search, and UI management table. Enables tracking physical custody of equipment for operational personnel (e.g. drivers, couriers, indent support, security) without generating login accounts.
+- **Photo-Matched BAST Document (Handover)**: Re-engineered Berita Acara Serah Terima based on official company form (`media_1795424704138_ed8d3592.jpg`):
+  - Official header: `TGC OF [COMPANY NAME]` with double underline border.
+  - Form Title: `FASILITAS HANDPHONE DARI PERUSAHAAN` (or `BERITA ACARA SERAH TERIMA ASET KANTOR` for general assets).
+  - Preamble meeting & policy decree block.
+  - Dedicated Gadget specifications (Type HP/Tab, No HP/Tab, Harga Unit HP, Paket Nomor HP / Provider e.g. *Biz Starter*).
+  - **4 Butir Aturan Tanggung Jawab Mutlak**: Universal 4-clause accountability rules enforced on ALL asset handovers (both gadget and non-gadget per user specification).
+  - Physical condition and recipient details (`Nama Pemegang`, `Bagian / Departemen`, `Diberikan Pada Tgl`, `Kondisi Saat Diberikan`).
+  - **3 Kolom Tanda Tangan**: Pihak Penerima (*Saya yang bertanda tangan*), Diketahui Oleh 1 (*Supervisor / Atasan Bagian*), and Diketahui Oleh 2 (*GA & IT Management*).
+  - Declaration clause: *"Telah membaca dan memahami fasilitas perusahaan yang diberikan tanggung jawab kepada saya, dengan kondisi sadar tanpa ada paksaan dari pihak manapun."*
+  - Document footer with timestamp and generator attribution.
+- **Dynamic BAST Template Switcher**: In-modal toggle allowing instant switching between *Fasilitas HP / Gadget* and *Aset Kantor Umum* templates.
+
+### Changed
+- **Asset Registration**: Integrated Master Lokasi and Master PIC / Karyawan dropdowns into asset registration (`#form-add-asset`), along with dynamic fields for gadget SIM number, provider package, and unit price.
+- **Single & Batch Asset Handover**: Upgraded handover modals (`#modal-handover` and `#modal-batch-handover`) to support assigning custody to Master PICs with customizable *Diketahui Oleh 1 & 2* signers.
+- **Asset History & Timeline**: Enhanced timeline logs to capture `from_employee_id`, `to_employee_id`, `known_by_1`, `known_by_2`, and `bast_template`.
+
+### Verified
+- **Accessibility & Quality Gates**: 0 WCAG 2.2 AA violations detected via `@axe-core/cli 4.13.0`.
+- **Integration Tests**: 35 automated API tests passing (`npm test`).
+- **Syntax Verification**: 21/21 JavaScript source files validated (`npm run check`).
+
+---
+
 ## [1.1.0] - 2026-11-23
 
 ### Added
