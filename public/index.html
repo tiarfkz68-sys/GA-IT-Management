@@ -169,14 +169,42 @@
       cursor: grabbing;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+
+    /* WCAG 2.2 AA Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* Screen reader only utility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
   </style>
 </head>
 <body class="bg-linen-100 text-navy-900 antialiased h-screen flex overflow-hidden">
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed top-5 right-5 z-[100] transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none">
+  <!-- Skip Link for Keyboard Navigation (WCAG 2.4.1) -->
+  <a href="#view-dashboard" onclick="nav('dashboard')" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[999] focus:px-4 focus:py-2 focus:bg-amber-500 focus:text-navy-950 focus:font-bold focus:rounded-lg focus:shadow-xl focus:outline-none focus:ring-2 focus:ring-navy-900">
+    Lewati ke Konten Utama
+  </a>
+
+  <!-- Toast Notification (WCAG 4.1.3 Status Message) -->
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true" class="fixed top-5 right-5 z-[100] transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none">
     <div class="flex items-center gap-3 px-4 py-3 bg-navy-900 text-white rounded-xl shadow-xl border border-navy-700 text-sm font-medium">
-      <i id="toast-icon" class="fa-solid fa-circle-check text-amber-400"></i>
+      <i id="toast-icon" class="fa-solid fa-circle-check text-amber-400" aria-hidden="true"></i>
       <span id="toast-msg">Notifikasi</span>
     </div>
   </div>
@@ -184,23 +212,23 @@
   <!-- ========================================================= -->
   <!-- 0. LOGIN MODAL (SECURITY GATE FOR VPS) -->
   <!-- ========================================================= -->
-  <div id="modal-login" class="modal-overlay hidden z-[90]">
+  <div id="modal-login" role="dialog" aria-modal="true" aria-labelledby="login-app-title" class="modal-overlay hidden z-[90]">
     <div class="bg-linen-50 rounded-2xl max-w-md w-full p-8 shadow-2xl border border-linen-200 space-y-6 text-navy-900">
       <div class="text-center space-y-1">
-        <div class="w-12 h-12 rounded-xl bg-amber-500 text-navy-950 flex items-center justify-center mx-auto text-xl shadow-md">
+        <div class="w-12 h-12 rounded-xl bg-amber-500 text-navy-950 flex items-center justify-center mx-auto text-xl shadow-md" aria-hidden="true">
           <i class="fa-solid fa-shield-halved"></i>
         </div>
         <h2 class="text-xl font-bold text-navy-900 pt-2" id="login-app-title">GA & IT Workbench</h2>
-        <p class="text-xs text-navy-700/70">Masuk untuk mengakses portal operasional.</p>
+        <p class="text-xs text-navy-800">Masuk untuk mengakses portal operasional.</p>
       </div>
 
       <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Alamat Email *</label>
+          <label for="login-email" class="block text-xs font-semibold text-navy-800 mb-1">Alamat Email *</label>
           <input id="login-email" type="email" value="admin@company.com" class="w-full text-sm bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-500" required>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Kata Sandi (Password) *</label>
+          <label for="login-password" class="block text-xs font-semibold text-navy-800 mb-1">Kata Sandi (Password) *</label>
           <input id="login-password" type="password" value="admin123" class="w-full text-sm bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-500" required>
         </div>
 
@@ -241,7 +269,7 @@
           <div class="text-sm font-bold text-white tracking-wide leading-none truncate" id="brand-company-name">GA-IT OPS</div>
           <div class="text-[11px] text-slate-400 font-normal mt-0.5 truncate" id="brand-portal-title">Management Workbench</div>
         </div>
-        <button onclick="toggleMobileSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1 text-base ml-auto" title="Tutup Menu">
+        <button onclick="toggleMobileSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1 text-base ml-auto" title="Tutup Menu" aria-label="Tutup navigasi menu">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -255,7 +283,7 @@
             <div class="text-[10px] text-amber-400 uppercase font-semibold" id="current-user-role">ADMIN</div>
           </div>
         </div>
-        <button onclick="logout()" title="Logout" class="text-slate-400 hover:text-rose-400 p-1.5 text-xs transition">
+        <button onclick="logout()" title="Logout" aria-label="Logout dari sesi" class="text-slate-400 hover:text-rose-400 p-1.5 text-xs transition">
           <i class="fa-solid fa-arrow-right-from-bracket"></i>
         </button>
       </div>
@@ -467,19 +495,20 @@
           <!-- Search & Filters Group -->
           <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0 w-full">
             <div class="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs"></i>
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs" aria-hidden="true"></i>
               <input id="asset-search" oninput="onAssetFilterChange()" type="text" placeholder="Cari tag, nama barang, SN, spek, user..." 
+                aria-label="Cari aset berdasarkan tag, nama barang, nomor seri, spesifikasi, atau nama pemegang"
                 class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-navy-900">
             </div>
 
             <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-              <select id="asset-filter-cat" onchange="onAssetFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+              <select id="asset-filter-cat" onchange="onAssetFilterChange()" aria-label="Filter berdasarkan divisi atau kategori aset" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
                 <option value="">Semua Divisi</option>
                 <option value="IT">Hanya IT</option>
                 <option value="GA">Hanya GA</option>
               </select>
 
-              <select id="asset-filter-status" onchange="onAssetFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+              <select id="asset-filter-status" onchange="onAssetFilterChange()" aria-label="Filter berdasarkan status ketersediaan aset" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
                 <option value="">Semua Status</option>
                 <option value="available">Tersedia (Gudang)</option>
                 <option value="assigned">Dipakai</option>
@@ -487,11 +516,11 @@
                 <option value="broken">Rusak / Afkir</option>
               </select>
 
-              <button onclick="resetAssetFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0" title="Reset Filter">
+              <button onclick="resetAssetFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0 min-w-[28px] min-h-[28px] flex items-center justify-center" title="Reset Filter" aria-label="Reset semua filter pencarian aset">
                 <i class="fa-solid fa-rotate-left"></i>
               </button>
 
-              <span id="assets-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 aset</span>
+              <span id="assets-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap" aria-live="polite">Menampilkan 0 aset</span>
             </div>
           </div>
 
@@ -515,7 +544,7 @@
               <thead>
                 <tr>
                   <th class="th-cell w-10 text-center">
-                    <input type="checkbox" id="chk-select-all-assets" onchange="toggleSelectAllAssets(this.checked)" class="rounded text-amber-500 focus:ring-amber-500 cursor-pointer" title="Pilih Semua">
+                    <input type="checkbox" id="chk-select-all-assets" onchange="toggleSelectAllAssets(this.checked)" class="rounded text-amber-500 focus:ring-amber-500 cursor-pointer w-4 h-4" title="Pilih Semua" aria-label="Pilih semua baris aset pada tabel">
                   </th>
                   <th class="th-cell w-32">Tag Aset</th>
                   <th class="th-cell w-56">Nama & Model</th>
@@ -532,7 +561,7 @@
         </div>
 
         <!-- FLOATING BATCH ACTION BAR -->
-        <div id="batch-action-bar" class="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-2xl border border-navy-700 flex items-center gap-2 sm:gap-4 transition-all duration-300 transform translate-y-28 opacity-0 pointer-events-none max-w-[calc(100vw-1.5rem)] overflow-x-auto">
+        <div id="batch-action-bar" role="region" aria-label="Aksi massal aset yang dipilih" class="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white px-3 sm:px-5 py-2 sm:py-3 rounded-2xl shadow-2xl border border-navy-700 flex items-center gap-2 sm:gap-4 transition-all duration-300 transform translate-y-28 opacity-0 pointer-events-none max-w-[calc(100vw-1.5rem)] overflow-x-auto">
           <div class="flex items-center gap-2 pr-2 sm:pr-3 border-r border-navy-700 text-xs font-bold whitespace-nowrap shrink-0">
             <span id="batch-count" class="bg-amber-500 text-navy-950 px-2 py-0.5 rounded-full text-[11px] font-bold font-mono">0</span>
             <span class="hidden xs:inline">Aset Dipilih</span>
@@ -550,7 +579,7 @@
             <button onclick="executeBatchDelete()" class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold bg-rose-700 hover:bg-rose-600 text-white rounded-lg transition shadow-sm whitespace-nowrap">
               <i class="fa-solid fa-trash"></i> Hapus
             </button>
-            <button onclick="clearAssetSelection()" class="text-xs text-slate-400 hover:text-white ml-1 p-1 transition shrink-0" title="Batalkan Pilihan">
+            <button onclick="clearAssetSelection()" class="text-xs text-slate-400 hover:text-white ml-1 p-1 transition shrink-0 min-w-[28px] min-h-[28px] flex items-center justify-center rounded" title="Batalkan Pilihan" aria-label="Batalkan semua pilihan aset">
               <i class="fa-solid fa-xmark text-sm"></i>
             </button>
           </div>
@@ -578,7 +607,7 @@
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Divisi *</label>
+                <label for="new-category" class="block text-xs font-semibold text-navy-800 mb-1">Divisi *</label>
                 <select id="new-category" onchange="onCategoryChange()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
                   <option value="IT">IT (Information Technology)</option>
                   <option value="GA">GA (General Affairs & Fasilitas)</option>
@@ -586,22 +615,22 @@
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Tipe / Kategori Barang *</label>
+                <label for="new-subcategory" class="block text-xs font-semibold text-navy-800 mb-1">Tipe / Kategori Barang *</label>
                 <select id="new-subcategory" onchange="renderDynamicSpecsForm()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required></select>
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Kode Tag Aset (Opsional)</label>
+                <label for="new-code" class="block text-xs font-semibold text-navy-800 mb-1">Kode Tag Aset (Opsional)</label>
                 <input id="new-code" type="text" placeholder="Auto-generated jika kosong" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
               </div>
 
               <div class="md:col-span-2">
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Nama & Merk Perangkat *</label>
+                <label for="new-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama & Merk Perangkat *</label>
                 <input id="new-name" type="text" placeholder="Contoh: MacBook Pro M3 14 / ThinkPad T14 / AC Daikin 1.5PK" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500" required>
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Serial Number / IMEI</label>
+                <label for="new-serial" class="block text-xs font-semibold text-navy-800 mb-1">Serial Number / IMEI</label>
                 <input id="new-serial" type="text" placeholder="SN Pabrik / IMEI Ponsel" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
               </div>
             </div>
@@ -620,7 +649,7 @@
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Status Awal</label>
+                <label for="new-status" class="block text-xs font-semibold text-navy-800 mb-1">Status Awal</label>
                 <select id="new-status" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
                   <option value="available">Tersedia di Gudang (Available)</option>
                   <option value="assigned">Diserahkan ke Karyawan (Assigned)</option>
@@ -629,12 +658,12 @@
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Lokasi Fisik</label>
+                <label for="new-location" class="block text-xs font-semibold text-navy-800 mb-1">Lokasi Fisik</label>
                 <input id="new-location" type="text" value="Jakarta HQ" placeholder="Contoh: Ruang IT Lt 3" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-navy-800 mb-1">Diserahkan Kepada (User)</label>
+                <label for="new-assigned-user" class="block text-xs font-semibold text-navy-800 mb-1">Diserahkan Kepada (User)</label>
                 <select id="new-assigned-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
                   <option value="">-- Belum Di-assign (Di Gudang) --</option>
                 </select>
@@ -692,7 +721,7 @@
         <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-sm font-bold text-navy-900">Stok Barang Habis Pakai (Consumables)</h2>
-            <p class="text-xs text-navy-700/70">Kertas, toner printer, kabel LAN, baterai dengan sistem mutasi stok masuk & keluar.</p>
+            <p class="text-xs text-navy-800">Kertas, toner printer, kabel LAN, baterai dengan sistem mutasi stok masuk & keluar.</p>
           </div>
 
           <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
@@ -711,12 +740,13 @@
         <!-- Filter Toolbar Consumables -->
         <div class="bg-linen-50 p-3 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2.5 w-full">
           <div class="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs"></i>
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs" aria-hidden="true"></i>
             <input id="consumable-search" oninput="onConsumableFilterChange()" type="text" placeholder="Cari nama barang / ATK..." 
+              aria-label="Cari barang habis pakai atau ATK"
               class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-navy-900">
           </div>
           <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            <select id="consumable-filter-cat" onchange="onConsumableFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+            <select id="consumable-filter-cat" onchange="onConsumableFilterChange()" aria-label="Filter kategori barang habis pakai" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
               <option value="">Semua Kategori ATK</option>
               <option value="kertas">Kertas</option>
               <option value="toner">Toner / Tinta</option>
@@ -724,15 +754,15 @@
               <option value="pantry">Pantry / Kebersihan</option>
               <option value="atk">ATK Umum</option>
             </select>
-            <select id="consumable-filter-status" onchange="onConsumableFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+            <select id="consumable-filter-status" onchange="onConsumableFilterChange()" aria-label="Filter status persediaan stok barang" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
               <option value="">Semua Status Stok</option>
               <option value="low">Hanya Kritis / Habis</option>
               <option value="safe">Stok Aman</option>
             </select>
-            <button onclick="resetConsumableFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0" title="Reset Filter">
+            <button onclick="resetConsumableFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0 min-w-[28px] min-h-[28px] flex items-center justify-center" title="Reset Filter" aria-label="Reset semua filter barang habis pakai">
               <i class="fa-solid fa-rotate-left"></i>
             </button>
-            <span id="consumables-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 barang</span>
+            <span id="consumables-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap" aria-live="polite">Menampilkan 0 barang</span>
           </div>
         </div>
 
@@ -762,13 +792,14 @@
         <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
           <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 min-w-0 w-full">
             <div class="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
-              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs"></i>
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs" aria-hidden="true"></i>
               <input id="ticket-search" oninput="onTicketFilterChange()" type="text" placeholder="Cari nomor tiket, judul pekerjaan, pemohon..." 
+                aria-label="Cari tiket logbook berdasarkan nomor tiket, judul pekerjaan, atau nama pemohon"
                 class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-navy-900">
             </div>
 
             <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-              <select id="ticket-filter-status" onchange="onTicketFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+              <select id="ticket-filter-status" onchange="onTicketFilterChange()" aria-label="Filter status tiket logbook" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
                 <option value="">Semua Status</option>
                 <option value="open">Open (Belum Selesai)</option>
                 <option value="in_progress">In Progress (Sedang Dikerjakan)</option>
@@ -776,7 +807,7 @@
                 <option value="closed">Closed (Ditutup)</option>
               </select>
 
-              <select id="ticket-filter-priority" onchange="onTicketFilterChange()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
+              <select id="ticket-filter-priority" onchange="onTicketFilterChange()" aria-label="Filter prioritas tiket logbook" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
                 <option value="">Semua Prioritas</option>
                 <option value="urgent">Urgent</option>
                 <option value="high">Tinggi</option>
@@ -784,11 +815,11 @@
                 <option value="low">Rendah</option>
               </select>
 
-              <button onclick="resetTicketFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0" title="Reset Filter">
+              <button onclick="resetTicketFilters()" class="text-xs text-navy-600 hover:text-navy-900 p-1.5 rounded hover:bg-linen-200 transition shrink-0 min-w-[28px] min-h-[28px] flex items-center justify-center" title="Reset Filter" aria-label="Reset semua filter tiket logbook">
                 <i class="fa-solid fa-rotate-left"></i>
               </button>
 
-              <span id="ticket-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap">Menampilkan 0 tiket</span>
+              <span id="ticket-counter" class="text-xs font-semibold text-navy-700 ml-auto whitespace-nowrap" aria-live="polite">Menampilkan 0 tiket</span>
             </div>
           </div>
 
@@ -875,17 +906,17 @@
             <h3 class="text-sm font-bold text-navy-900 border-b border-linen-200 pb-2">Identitas Kantor & Portal</h3>
             
             <div>
-              <label class="block text-xs font-semibold text-navy-800 mb-1">Nama Perusahaan / Kantor *</label>
+              <label for="set-company-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama Perusahaan / Kantor *</label>
               <input id="set-company-name" type="text" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-navy-800 mb-1">Judul Aplikasi / Header Portal</label>
+              <label for="set-app-title" class="block text-xs font-semibold text-navy-800 mb-1">Judul Aplikasi / Header Portal</label>
               <input id="set-app-title" type="text" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-navy-800 mb-1">URL Logo Perusahaan (PNG/JPG Transparan)</label>
+              <label for="set-logo-url" class="block text-xs font-semibold text-navy-800 mb-1">URL Logo Perusahaan (PNG/JPG Transparan)</label>
               <input id="set-logo-url" oninput="previewLogo()" type="text" placeholder="https://example.com/logo.png" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
               <span class="text-[11px] text-navy-600/70 mt-1 block">Logo ini akan tampil di sudut kiri atas dan kop surat BAST.</span>
             </div>
@@ -986,11 +1017,11 @@
               <!-- Custom Dimensions -->
               <div class="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label class="block text-xs font-semibold text-navy-800 mb-1">Lebar Stiker (mm) *</label>
+                  <label for="label-width-mm" class="block text-xs font-semibold text-navy-800 mb-1">Lebar Stiker (mm) *</label>
                   <input id="label-width-mm" oninput="updateLabelCanvasSize()" type="number" value="50" min="20" max="150" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
                 </div>
                 <div>
-                  <label class="block text-xs font-semibold text-navy-800 mb-1">Tinggi Stiker (mm) *</label>
+                  <label for="label-height-mm" class="block text-xs font-semibold text-navy-800 mb-1">Tinggi Stiker (mm) *</label>
                   <input id="label-height-mm" oninput="updateLabelCanvasSize()" type="number" value="30" min="15" max="150" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
                 </div>
               </div>
@@ -999,31 +1030,31 @@
               <div class="border-t border-linen-200 pt-4">
                 <label class="block text-xs font-bold text-navy-900 mb-2">Pilih Elemen Yang Ditampilkan:</label>
                 <div class="space-y-2 text-xs text-navy-800">
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="chk-company" onchange="toggleLabelElement('company')" class="rounded text-amber-500 focus:ring-amber-500" checked>
+                  <label for="chk-company" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-company" aria-label="Nama Perusahaan / Header" onchange="toggleLabelElement('company')" class="rounded text-amber-500 focus:ring-amber-500" checked>
                     <span>Nama Perusahaan / Header</span>
                   </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="chk-code" onchange="toggleLabelElement('code')" class="rounded text-amber-500 focus:ring-amber-500" checked>
+                  <label for="chk-code" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-code" aria-label="Kode Tag Aset (e.g. IT-LPT-001)" onchange="toggleLabelElement('code')" class="rounded text-amber-500 focus:ring-amber-500" checked>
                     <span class="font-bold font-mono">Kode Tag Aset (e.g. IT-LPT-001)</span>
                   </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="chk-qrcode" onchange="toggleLabelElement('qrcode')" class="rounded text-amber-500 focus:ring-amber-500" checked>
+                  <label for="chk-qrcode" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-qrcode" aria-label="QR Code (Scan Cepat)" onchange="toggleLabelElement('qrcode')" class="rounded text-amber-500 focus:ring-amber-500" checked>
                     <span class="font-semibold text-navy-700">QR Code (Scan Cepat)</span>
                   </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="chk-name" onchange="toggleLabelElement('name')" class="rounded text-amber-500 focus:ring-amber-500" checked>
+                  <label for="chk-name" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-name" aria-label="Nama Aset" onchange="toggleLabelElement('name')" class="rounded text-amber-500 focus:ring-amber-500" checked>
                     <span>Nama & Model Barang</span>
                   </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="chk-specs" onchange="toggleLabelElement('specs')" class="rounded text-amber-500 focus:ring-amber-500" checked>
+                  <label for="chk-specs" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-specs" aria-label="Spesifikasi Ringkas" onchange="toggleLabelElement('specs')" class="rounded text-amber-500 focus:ring-amber-500" checked>
                     <span>Rincian Spesifikasi (CPU/RAM/PK)</span>
                   </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="chk-serial" onchange="toggleLabelElement('serial')" class="rounded text-amber-500 focus:ring-amber-500" checked>
+                  <label for="chk-serial" class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="chk-serial" aria-label="Serial Number" onchange="toggleLabelElement('serial')" class="rounded text-amber-500 focus:ring-amber-500" checked>
                     <span>Serial Number / IMEI</span>
                   </label>
-                  <label class="flex items-center gap-2 cursor-pointer">
+                  <label for="chk-location" class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="chk-location" onchange="toggleLabelElement('location')" class="rounded text-amber-500 focus:ring-amber-500">
                     <span>Lokasi Ruangan</span>
                   </label>
@@ -1102,17 +1133,17 @@
   <!-- ========================================================= -->
   <!-- MODAL: CETAK BAST DIGITAL (OFFICIAL HANDOVER) -->
   <!-- ========================================================= -->
-  <div id="modal-bast" class="modal-overlay hidden">
+  <div id="modal-bast" role="dialog" aria-modal="true" aria-labelledby="modal-title-bast" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-          <i class="fa-solid fa-file-contract text-amber-600"></i> Dokumen Berita Acara Serah Terima (BAST)
+        <h3 id="modal-title-bast" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-file-contract text-amber-600" aria-hidden="true"></i> Dokumen Berita Acara Serah Terima (BAST)
         </h3>
         <div class="flex items-center gap-2">
           <button onclick="printBAST()" class="px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded shadow-sm">
             <i class="fa-solid fa-print mr-1"></i> Cetak / Simpan PDF
           </button>
-          <button onclick="closeModal('modal-bast')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+          <button onclick="closeModal('modal-bast')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup dokumen BAST"><i class="fa-solid fa-xmark"></i></button>
         </div>
       </div>
 
@@ -1194,13 +1225,13 @@
   <!-- ========================================================= -->
   <!-- MODAL: MUTASI / SERAH TERIMA ASET KE USER BARU -->
   <!-- ========================================================= -->
-  <div id="modal-handover" class="modal-overlay hidden">
+  <div id="modal-handover" role="dialog" aria-modal="true" aria-labelledby="modal-title-handover" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-          <i class="fa-solid fa-right-left text-amber-600"></i> Serah Terima / Mutasi Pemegang Aset
+        <h3 id="modal-title-handover" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-right-left text-amber-600" aria-hidden="true"></i> Serah Terima / Mutasi Pemegang Aset
         </h3>
-        <button onclick="closeModal('modal-handover')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-handover')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal mutasi serah terima"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <form id="form-handover" onsubmit="submitAssetHandover(event)" class="space-y-3">
@@ -1211,7 +1242,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Aksi Mutasi *</label>
+          <label for="handover-action" class="block text-xs font-semibold text-navy-800 mb-1">Aksi Mutasi *</label>
           <select id="handover-action" onchange="toggleHandoverUserSelect()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="checkout">Serahkan ke Karyawan Baru (Checkout)</option>
             <option value="checkin">Kembalikan ke Gudang IT/GA (Check-in)</option>
@@ -1219,12 +1250,12 @@
         </div>
 
         <div id="handover-user-group">
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Pilih Karyawan Penerima *</label>
+          <label for="handover-target-user" class="block text-xs font-semibold text-navy-800 mb-1">Pilih Karyawan Penerima *</label>
           <select id="handover-target-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Kondisi Fisik Saat Serah Terima</label>
+          <label for="handover-condition" class="block text-xs font-semibold text-navy-800 mb-1">Kondisi Fisik Saat Serah Terima</label>
           <select id="handover-condition" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="Baik (Normal)">Baik (Normal)</option>
             <option value="Ada Lecet Pemakaian">Ada Lecet Pemakaian</option>
@@ -1233,7 +1264,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Catatan / Alasan Mutasi</label>
+          <label for="handover-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan / Alasan Mutasi</label>
           <input id="handover-notes" type="text" placeholder="Misal: Pergantian staf marketing / promosi jabatan" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
         </div>
 
@@ -1248,14 +1279,14 @@
   <!-- ========================================================= -->
   <!-- MODAL: DETAIL ASET & TIMELINE LENGKAP -->
   <!-- ========================================================= -->
-  <div id="modal-asset-detail" class="modal-overlay hidden">
+  <div id="modal-asset-detail" role="dialog" aria-modal="true" aria-labelledby="detail-asset-name" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[88vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
         <div>
           <span id="detail-asset-code" class="text-xs font-mono font-bold text-navy-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-300"></span>
-          <h3 id="detail-asset-name" class="font-bold text-base text-navy-900 mt-1"></h3>
+          <h3 id="detail-asset-name" class="font-bold text-base text-navy-900 mt-1">Detail Informasi Aset</h3>
         </div>
-        <button onclick="closeModal('modal-asset-detail')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-asset-detail')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup rincian aset"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- Detail Navigation Tabs -->
@@ -1298,33 +1329,33 @@
   <!-- ========================================================= -->
   <!-- MODAL: TAMBAH USER / AKUN BARU -->
   <!-- ========================================================= -->
-  <div id="modal-add-user" class="modal-overlay hidden">
+  <div id="modal-add-user" role="dialog" aria-modal="true" aria-labelledby="modal-title-add-user" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-          <i class="fa-solid fa-user-plus text-amber-600"></i> Tambah Akun Pengguna Baru
+        <h3 id="modal-title-add-user" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-amber-600" aria-hidden="true"></i> Tambah Akun Pengguna Baru
         </h3>
-        <button onclick="closeModal('modal-add-user')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-add-user')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal tambah pengguna"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <form id="form-user" onsubmit="submitNewUser(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Nama Lengkap *</label>
+          <label for="new-user-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama Lengkap *</label>
           <input id="new-user-name" type="text" placeholder="Misal: Ratna Dewi" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Email Login *</label>
+          <label for="new-user-email" class="block text-xs font-semibold text-navy-800 mb-1">Email Login *</label>
           <input id="new-user-email" type="email" placeholder="hrd@company.com" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Kata Sandi (Password) *</label>
+          <label for="new-user-password" class="block text-xs font-semibold text-navy-800 mb-1">Kata Sandi (Password) *</label>
           <input id="new-user-password" type="password" value="password123" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Peran & Hak Akses (Role) *</label>
+          <label for="new-user-role" class="block text-xs font-semibold text-navy-800 mb-1">Peran & Hak Akses (Role) *</label>
           <select id="new-user-role" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="admin">Admin (Akses Penuh Semua Modul)</option>
             <option value="hrd">HRD (Backup Operasional GA-IT)</option>
@@ -1346,18 +1377,18 @@
   <!-- ========================================================= -->
   <!-- MODAL: TAMBAH KATEGORI BARU -->
   <!-- ========================================================= -->
-  <div id="modal-add-category" class="modal-overlay hidden">
+  <div id="modal-add-category" role="dialog" aria-modal="true" aria-labelledby="modal-title-add-category" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-          <i class="fa-solid fa-plus text-amber-600"></i> Tambah Master Kategori
+        <h3 id="modal-title-add-category" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-plus text-amber-600" aria-hidden="true"></i> Tambah Master Kategori
         </h3>
-        <button onclick="closeModal('modal-add-category')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-add-category')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal tambah kategori"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <form id="form-category" onsubmit="submitNewCategory(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Domain *</label>
+          <label for="cat-domain" class="block text-xs font-semibold text-navy-800 mb-1">Domain *</label>
           <select id="cat-domain" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="IT">IT (Teknologi Informasi)</option>
             <option value="GA">GA (General Affairs / Fasilitas)</option>
@@ -1365,17 +1396,17 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Nama Kategori *</label>
+          <label for="cat-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama Kategori *</label>
           <input id="cat-name" type="text" placeholder="Misal: Tablet iPad / Proyektor" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Kode Unik (ID) *</label>
+            <label for="cat-code" class="block text-xs font-semibold text-navy-800 mb-1">Kode Unik (ID) *</label>
             <input id="cat-code" type="text" placeholder="misal: tablet" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500" required>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Prefix Tag *</label>
+            <label for="cat-prefix" class="block text-xs font-semibold text-navy-800 mb-1">Prefix Tag *</label>
             <input id="cat-prefix" type="text" placeholder="IT-TAB" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-mono font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" required>
           </div>
         </div>
@@ -1390,20 +1421,20 @@
 
   <!-- Other modals: Ticket, Consumables In/Out/New, Accessory, Maintenance -->
   <!-- Modal: Quick Ticket -->
-  <div id="modal-ticket" class="modal-overlay hidden">
+  <div id="modal-ticket" role="dialog" aria-modal="true" aria-labelledby="modal-title-ticket" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-lg w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-amber-600"></i> Catat Logbook Cepat</h3>
-        <button onclick="closeModal('modal-ticket')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <h3 id="modal-title-ticket" class="font-bold text-sm text-navy-900 flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-amber-600" aria-hidden="true"></i> Catat Logbook Cepat</h3>
+        <button onclick="closeModal('modal-ticket')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal logbook"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-ticket" onsubmit="submitTicket(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Judul Pekerjaan / Masalah *</label>
+          <label for="ticket-title" class="block text-xs font-semibold text-navy-800 mb-1">Judul Pekerjaan / Masalah *</label>
           <input id="ticket-title" type="text" placeholder="Misal: AC Ruang Bromo Bunyi / Bantuan Setting Printer" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Kategori</label>
+            <label for="ticket-category" class="block text-xs font-semibold text-navy-800 mb-1">Kategori</label>
             <select id="ticket-category" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
               <option value="IT_SUPPORT">IT Support</option>
               <option value="GA_FACILITY">GA & Fasilitas</option>
@@ -1412,7 +1443,7 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Prioritas</label>
+            <label for="ticket-priority" class="block text-xs font-semibold text-navy-800 mb-1">Prioritas</label>
             <select id="ticket-priority" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
               <option value="medium">Medium</option>
               <option value="high">High (Tinggi)</option>
@@ -1423,16 +1454,16 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Pemohon (Karyawan)</label>
+            <label for="ticket-requester" class="block text-xs font-semibold text-navy-800 mb-1">Pemohon (Karyawan)</label>
             <select id="ticket-requester" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Terkait Aset</label>
+            <label for="ticket-asset" class="block text-xs font-semibold text-navy-800 mb-1">Terkait Aset</label>
             <select id="ticket-asset" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"><option value="">-- Tidak Terkait Aset --</option></select>
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Detail Tambahan</label>
+          <label for="ticket-desc" class="block text-xs font-semibold text-navy-800 mb-1">Detail Tambahan</label>
           <textarea id="ticket-desc" rows="2" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></textarea>
         </div>
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
@@ -1444,16 +1475,16 @@
   </div>
 
   <!-- Modal: Import Assets Excel -->
-  <div id="modal-import-assets" class="modal-overlay hidden">
+  <div id="modal-import-assets" role="dialog" aria-modal="true" aria-labelledby="modal-title-import" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-3xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200 flex-shrink-0">
         <div>
-          <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-            <i class="fa-solid fa-file-excel text-amber-600"></i> Import Data Aset dari Excel
+          <h3 id="modal-title-import" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-excel text-amber-600" aria-hidden="true"></i> Import Data Aset dari Excel
           </h3>
           <p class="text-xs text-navy-700/80 mt-0.5">Unggah file spreadsheet (.xlsx, .xls, .csv) untuk pendaftaran aset secara massal.</p>
         </div>
-        <button onclick="closeModal('modal-import-assets')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-import-assets')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal import excel"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="space-y-4 overflow-y-auto flex-1 pr-1">
@@ -1470,7 +1501,7 @@
 
         <!-- File Upload Area -->
         <div class="border-2 border-dashed border-linen-300 hover:border-amber-500 rounded-xl p-6 text-center transition bg-white cursor-pointer" onclick="document.getElementById('excel-file-input').click()">
-          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleAssetExcelFileInput(event)">
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" aria-label="Pilih file spreadsheet excel atau csv untuk diimpor" onchange="handleAssetExcelFileInput(event)">
           <div class="space-y-2">
             <i class="fa-solid fa-cloud-arrow-up text-3xl text-amber-500"></i>
             <div id="excel-upload-label" class="text-xs font-bold text-navy-900">Klik untuk memilih file Excel atau seret file ke sini</div>
@@ -1519,26 +1550,26 @@
   </div>
 
   <!-- Modal: Consumable Out (Multi-Line Checkout) -->
-  <div id="modal-consumable-out" class="modal-overlay hidden">
+  <div id="modal-consumable-out" role="dialog" aria-modal="true" aria-labelledby="modal-title-csm-out" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200 flex-shrink-0">
         <div>
-          <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-            <i class="fa-solid fa-arrow-up text-amber-600"></i> Pengeluaran Barang / ATK (Multi-Baris)
+          <h3 id="modal-title-csm-out" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-up text-amber-600" aria-hidden="true"></i> Pengeluaran Barang / ATK (Multi-Baris)
           </h3>
           <p class="text-xs text-navy-700/80 mt-0.5">Input bon pengambilan sekaligus untuk banyak barang dalam satu nota.</p>
         </div>
-        <button onclick="closeModal('modal-consumable-out')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-consumable-out')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal pengeluaran barang"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-csm-out" onsubmit="submitConsumableCheckout(event)" class="space-y-4 overflow-y-auto flex-1 pr-1 flex flex-col">
         <!-- Header Info -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-linen-100 p-3 rounded-lg border border-linen-200 flex-shrink-0">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Nama Penerima / Pemohon *</label>
+            <label for="csm-out-recipient" class="block text-xs font-semibold text-navy-800 mb-1">Nama Penerima / Pemohon *</label>
             <input id="csm-out-recipient" type="text" placeholder="Misal: Budi / Tim Finance" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Keperluan / Keterangan</label>
+            <label for="csm-out-notes" class="block text-xs font-semibold text-navy-800 mb-1">Keperluan / Keterangan</label>
             <input id="csm-out-notes" type="text" placeholder="Misal: Kebutuhan cetak invoice bulanan" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
           </div>
         </div>
@@ -1581,21 +1612,21 @@
   </div>
 
   <!-- Modal: Consumable In (Multi-Line Restock) -->
-  <div id="modal-consumable-in" class="modal-overlay hidden">
+  <div id="modal-consumable-in" role="dialog" aria-modal="true" aria-labelledby="modal-title-csm-in" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200 flex-shrink-0">
         <div>
-          <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-            <i class="fa-solid fa-arrow-down text-amber-600"></i> Restock / Penerimaan Barang (Multi-Baris)
+          <h3 id="modal-title-csm-in" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-down text-amber-600" aria-hidden="true"></i> Restock / Penerimaan Barang (Multi-Baris)
           </h3>
           <p class="text-xs text-navy-700/80 mt-0.5">Catat penerimaan beberapa barang sekaligus dari supplier atau PO.</p>
         </div>
-        <button onclick="closeModal('modal-consumable-in')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-consumable-in')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal restock barang"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-csm-in" onsubmit="submitConsumableRestock(event)" class="space-y-4 overflow-y-auto flex-1 pr-1 flex flex-col">
         <!-- Optional Note/PO -->
         <div class="bg-linen-100 p-3 rounded-lg border border-linen-200 flex-shrink-0">
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Catatan Penerimaan / No. PO / Supplier (Opsional)</label>
+          <label for="csm-in-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan Penerimaan / No. PO / Supplier (Opsional)</label>
           <input id="csm-in-notes" type="text" placeholder="Misal: PO-2026-088 Supplier Toko ATK Jaya" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
         </div>
 
@@ -1637,16 +1668,16 @@
   </div>
 
   <!-- Modal: Consumable Master New (Multi-Line) -->
-  <div id="modal-consumable-new" class="modal-overlay hidden">
+  <div id="modal-consumable-new" role="dialog" aria-modal="true" aria-labelledby="modal-title-csm-new" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-3xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200 flex-shrink-0">
         <div>
-          <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-            <i class="fa-solid fa-box text-navy-900"></i> Pendaftaran Master ATK Baru (Multi-Baris)
+          <h3 id="modal-title-csm-new" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-box text-navy-900" aria-hidden="true"></i> Pendaftaran Master ATK Baru (Multi-Baris)
           </h3>
           <p class="text-xs text-navy-700/80 mt-0.5">Daftarkan satu atau banyak item master barang habis pakai sekaligus.</p>
         </div>
-        <button onclick="closeModal('modal-consumable-new')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-consumable-new')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal pendaftaran master ATK"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-csm-new" onsubmit="submitNewConsumable(event)" class="space-y-4 overflow-y-auto flex-1 pr-1 flex flex-col">
         <div class="flex items-center justify-between">
@@ -1686,20 +1717,20 @@
   </div>
 
   <!-- Modal: Accessory -->
-  <div id="modal-accessory" class="modal-overlay hidden">
+  <div id="modal-accessory" role="dialog" aria-modal="true" aria-labelledby="modal-title-accessory" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2"><i class="fa-solid fa-keyboard text-amber-600"></i> Daftarkan Aksesoris</h3>
-        <button onclick="closeModal('modal-accessory')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <h3 id="modal-title-accessory" class="font-bold text-sm text-navy-900 flex items-center gap-2"><i class="fa-solid fa-keyboard text-amber-600" aria-hidden="true"></i> Daftarkan Aksesoris</h3>
+        <button onclick="closeModal('modal-accessory')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal aksesoris"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-acc" onsubmit="submitNewAccessory(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Nama Aksesoris *</label>
+          <label for="acc-name" class="block text-xs font-semibold text-navy-800 mb-1">Nama Aksesoris *</label>
           <input id="acc-name" type="text" placeholder="Misal: Logitech Mouse M331" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" required>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Kategori</label>
+            <label for="acc-category" class="block text-xs font-semibold text-navy-800 mb-1">Kategori</label>
             <select id="acc-category" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
               <option value="mouse">Mouse</option>
               <option value="keyboard">Keyboard</option>
@@ -1709,16 +1740,16 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Serial Number</label>
+            <label for="acc-serial" class="block text-xs font-semibold text-navy-800 mb-1">Serial Number</label>
             <input id="acc-serial" type="text" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
           </div>
         </div>
         <div class="bg-linen-100 p-2.5 rounded border border-linen-200">
-          <label class="block text-xs font-bold text-navy-900 mb-1"><i class="fa-solid fa-link text-amber-600"></i> Tautkan ke Laptop/Aset Utama:</label>
+          <label for="acc-link-asset" class="block text-xs font-bold text-navy-900 mb-1"><i class="fa-solid fa-link text-amber-600" aria-hidden="true"></i> Tautkan ke Laptop/Aset Utama:</label>
           <select id="acc-link-asset" class="w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Atau Serahkan ke Karyawan Langsung</label>
+          <label for="acc-user" class="block text-xs font-semibold text-navy-800 mb-1">Atau Serahkan ke Karyawan Langsung</label>
           <select id="acc-user" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
         </div>
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
@@ -1730,11 +1761,11 @@
   </div>
 
   <!-- Modal: Maintenance -->
-  <div id="modal-maintenance" class="modal-overlay hidden">
+  <div id="modal-maintenance" role="dialog" aria-modal="true" aria-labelledby="modal-title-maintenance" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2"><i class="fa-solid fa-wrench text-amber-600"></i> Catat Servis</h3>
-        <button onclick="closeModal('modal-maintenance')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <h3 id="modal-title-maintenance" class="font-bold text-sm text-navy-900 flex items-center gap-2"><i class="fa-solid fa-wrench text-amber-600" aria-hidden="true"></i> Catat Servis</h3>
+        <button onclick="closeModal('modal-maintenance')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal servis"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <form id="form-maintenance" onsubmit="submitMaintenance(event)" class="space-y-3">
         <input type="hidden" id="maint-asset-id">
@@ -1744,7 +1775,7 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Tipe Servis</label>
+            <label for="maint-type" class="block text-xs font-semibold text-navy-800 mb-1">Tipe Servis</label>
             <select id="maint-type" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
               <option value="service_berkala">Servis Berkala</option>
               <option value="cuci_ac">Cuci AC</option>
@@ -1754,22 +1785,22 @@
             </select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Tanggal</label>
+            <label for="maint-date" class="block text-xs font-semibold text-navy-800 mb-1">Tanggal</label>
             <input id="maint-date" type="date" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Biaya (Rp)</label>
+            <label for="maint-cost" class="block text-xs font-semibold text-navy-800 mb-1">Biaya (Rp)</label>
             <input id="maint-cost" type="number" value="0" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-navy-800 mb-1">Vendor / Bengkel</label>
+            <label for="maint-vendor" class="block text-xs font-semibold text-navy-800 mb-1">Vendor / Bengkel</label>
             <input id="maint-vendor" type="text" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
           </div>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Catatan</label>
+          <label for="maint-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan</label>
           <textarea id="maint-notes" rows="2" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></textarea>
         </div>
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
@@ -1783,16 +1814,16 @@
   <!-- ========================================================= -->
   <!-- MODAL: BATCH HANDOVER (MUTASI MASSAL) -->
   <!-- ========================================================= -->
-  <div id="modal-batch-handover" class="modal-overlay hidden">
+  <div id="modal-batch-handover" role="dialog" aria-modal="true" aria-labelledby="modal-title-batch-handover" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
         <div>
-          <h3 class="font-bold text-base text-navy-900 flex items-center gap-2">
-            <i class="fa-solid fa-file-signature text-amber-600"></i> Mutasi & BAST Gabungan
+          <h3 id="modal-title-batch-handover" class="font-bold text-base text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-signature text-amber-600" aria-hidden="true"></i> Mutasi & BAST Gabungan
           </h3>
           <p class="text-xs text-navy-700/80 mt-0.5">Serah terima beberapa unit aset sekaligus dalam 1 nomor surat resmi.</p>
         </div>
-        <button onclick="closeModal('modal-batch-handover')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-batch-handover')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal mutasi gabungan"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <!-- Preview Selected Assets -->
@@ -1806,7 +1837,7 @@
 
       <form id="form-batch-handover" onsubmit="submitBatchHandover(event)" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Jenis Tindakan *</label>
+          <label for="batch-handover-action" class="block text-xs font-semibold text-navy-800 mb-1">Jenis Tindakan *</label>
           <select id="batch-handover-action" onchange="toggleBatchHandoverUserSelect()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="checkout">Check-Out: Serahkan ke Karyawan (Penggunaan Baru)</option>
             <option value="checkin">Check-In: Tarik Kembali ke Gudang / Standby</option>
@@ -1814,12 +1845,12 @@
         </div>
 
         <div id="batch-handover-user-group">
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Karyawan Penerima (User) *</label>
+          <label for="batch-handover-target-user" class="block text-xs font-semibold text-navy-800 mb-1">Karyawan Penerima (User) *</label>
           <select id="batch-handover-target-user" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Kondisi Perangkat Saat Serah Terima *</label>
+          <label for="batch-handover-condition" class="block text-xs font-semibold text-navy-800 mb-1">Kondisi Perangkat Saat Serah Terima *</label>
           <select id="batch-handover-condition" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="Baik (Normal)">Baik (Normal - Siap Pakai)</option>
             <option value="Baru (Brand New)">Baru (Brand New Segel/Fresh)</option>
@@ -1829,7 +1860,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Catatan Serah Terima / Keperluan</label>
+          <label for="batch-handover-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan Serah Terima / Keperluan</label>
           <textarea id="batch-handover-notes" rows="2" placeholder="Misal: Penyerahan paket perlengkapan kerja staf onboarding baru." 
             class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></textarea>
         </div>
@@ -1847,12 +1878,12 @@
   <!-- ========================================================= -->
   <!-- MODAL: DOKUMEN BAST GABUNGAN (COMBINED BAST) -->
   <!-- ========================================================= -->
-  <div id="modal-batch-bast" class="modal-overlay hidden">
+  <div id="modal-batch-bast" role="dialog" aria-modal="true" aria-labelledby="modal-title-batch-bast" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[92vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
         <div>
-          <h3 class="font-bold text-base text-navy-900 flex items-center gap-2">
-            <i class="fa-solid fa-file-contract text-amber-600"></i> Dokumen Berita Acara Serah Terima (BAST) Gabungan
+          <h3 id="modal-title-batch-bast" class="font-bold text-base text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-file-contract text-amber-600" aria-hidden="true"></i> Dokumen Berita Acara Serah Terima (BAST) Gabungan
           </h3>
           <p class="text-xs text-navy-700/80">Dokumen resmi serah terima multi-aset siap cetak ke printer / PDF.</p>
         </div>
@@ -1860,7 +1891,7 @@
           <button onclick="printBatchBAST()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
             <i class="fa-solid fa-print"></i> Cetak Dokumen (A4)
           </button>
-          <button onclick="closeModal('modal-batch-bast')" class="text-navy-400 hover:text-navy-700 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+          <button onclick="closeModal('modal-batch-bast')" class="text-navy-400 hover:text-navy-700 p-1 min-w-[28px] min-h-[28px] flex items-center justify-center rounded" aria-label="Tutup dokumen BAST gabungan"><i class="fa-solid fa-xmark text-lg"></i></button>
         </div>
       </div>
 
@@ -1950,13 +1981,13 @@
   <!-- ========================================================= -->
   <!-- MODAL: BATCH STATUS UPDATE -->
   <!-- ========================================================= -->
-  <div id="modal-batch-status" class="modal-overlay hidden">
+  <div id="modal-batch-status" role="dialog" aria-modal="true" aria-labelledby="modal-title-batch-status" class="modal-overlay hidden">
     <div class="bg-linen-50 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-linen-200">
-        <h3 class="font-bold text-sm text-navy-900 flex items-center gap-2">
-          <i class="fa-solid fa-arrows-rotate text-amber-600"></i> Ubah Status Aset Sekaligus
+        <h3 id="modal-title-batch-status" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate text-amber-600" aria-hidden="true"></i> Ubah Status Aset Sekaligus
         </h3>
-        <button onclick="closeModal('modal-batch-status')" class="text-navy-400 hover:text-navy-700"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeModal('modal-batch-status')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal ubah status massal"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="bg-amber-100 p-3 rounded-xl border border-amber-300 text-xs text-amber-950">
@@ -1965,7 +1996,7 @@
 
       <form id="form-batch-status" onsubmit="submitBatchStatus(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Status Baru *</label>
+          <label for="batch-status-target" class="block text-xs font-semibold text-navy-800 mb-1">Status Baru *</label>
           <select id="batch-status-target" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="available">Tersedia (Kembali ke Gudang / Standby)</option>
             <option value="assigned">Dipakai (Assigned)</option>
@@ -1975,7 +2006,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-navy-800 mb-1">Catatan Perubahan (Opsional)</label>
+          <label for="batch-status-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan Perubahan (Opsional)</label>
           <textarea id="batch-status-notes" rows="2" placeholder="Misal: Penyesuaian stok triwulan / jadwal servis berkala." class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></textarea>
         </div>
 
@@ -2100,17 +2131,78 @@
       }, 3500);
     }
 
+    function getOpenModal() {
+      const modals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+      return modals.length > 0 ? modals[modals.length - 1] : null;
+    }
+
     function openModal(id) {
       if (id === 'modal-consumable-new') initConsumableMasterRows();
       if (id === 'modal-consumable-in') initConsumableRestockRows();
       if (id === 'modal-consumable-out') initConsumableCheckoutRows();
       const el = document.getElementById(id);
-      if (el) el.classList.remove('hidden');
+      if (el) {
+        el._previousActiveElement = document.activeElement;
+        el.classList.remove('hidden');
+        setTimeout(() => {
+          const focusable = el.querySelectorAll('button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+          if (focusable.length > 0) {
+            const firstInput = el.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+            if (firstInput) {
+              firstInput.focus();
+            } else {
+              focusable[0].focus();
+            }
+          }
+        }, 50);
+      }
     }
+
     function closeModal(id) {
       const el = document.getElementById(id);
-      if (el) el.classList.add('hidden');
+      if (el) {
+        el.classList.add('hidden');
+        if (el._previousActiveElement && typeof el._previousActiveElement.focus === 'function') {
+          el._previousActiveElement.focus();
+        }
+      }
     }
+
+    // Accessible keyboard navigation: Escape key dismissal and Tab focus trapping
+    document.addEventListener('keydown', function(e) {
+      const activeModal = getOpenModal();
+      if (!activeModal) return;
+
+      if (e.key === 'Escape') {
+        // Do not close login modal if user is not authenticated
+        if (activeModal.id === 'modal-login' && !state.currentUser) {
+          return;
+        }
+        e.preventDefault();
+        closeModal(activeModal.id);
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusable = Array.from(activeModal.querySelectorAll('button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.offsetParent !== null);
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || !activeModal.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last || !activeModal.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    });
 
     // Auth
     async function handleLogin(e) {
@@ -2269,7 +2361,7 @@
           <td class="td-cell font-mono text-xs text-navy-700">${escapeHtml(c.code)}</td>
           <td class="td-cell font-mono font-bold text-xs text-navy-900">${escapeHtml(c.tag_prefix)}</td>
           <td class="td-cell text-right">
-            <button onclick="deleteCategory(${c.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button>
+            <button onclick="deleteCategory(${c.id})" aria-label="Hapus master kategori ${escapeHtml(c.name)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 rounded transition"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
           </td>
         </tr>
       `).join('');
@@ -2351,7 +2443,7 @@
             <span class="px-2 py-0.5 rounded text-[11px] font-semibold ${u.is_active ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">${u.is_active ? 'Aktif' : 'Non-aktif'}</span>
           </td>
           <td class="td-cell text-right">
-            <button onclick="deleteUser(${u.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button>
+            <button onclick="deleteUser(${u.id})" aria-label="Hapus pengguna ${escapeHtml(u.name)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 rounded transition"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
           </td>
         </tr>
       `).join('');
@@ -2516,6 +2608,15 @@
         colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
       });
+      const setAlt = () => {
+        const img = box.querySelector('img');
+        if (img) {
+          img.setAttribute('alt', 'Contoh QR Code Aset IT-LPT-001');
+        } else {
+          setTimeout(setAlt, 10);
+        }
+      };
+      setAlt();
     }
 
     async function saveLabelTemplate() {
@@ -2599,7 +2700,7 @@
         </div>
       `;
 
-      new QRCode(container.querySelector('#print-qr-box'), {
+      const printQr = new QRCode(container.querySelector('#print-qr-box'), {
         text: asset.code,
         width: 60,
         height: 60,
@@ -2816,35 +2917,35 @@
 
       if (subcat === 'laptop' || subcat === 'desktop') {
         container.innerHTML = `
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Processor</label><input id="spec-cpu" type="text" placeholder="i7 / Ryzen 7 / M3" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">RAM</label><input id="spec-ram" type="text" placeholder="16GB DDR5" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Storage</label><input id="spec-storage" type="text" placeholder="512GB SSD" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">OS</label><input id="spec-os" type="text" placeholder="Windows 11 / macOS" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label for="spec-cpu" class="block text-xs font-semibold text-navy-800 mb-1">Processor</label><input id="spec-cpu" type="text" placeholder="i7 / Ryzen 7 / M3" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-ram" class="block text-xs font-semibold text-navy-800 mb-1">RAM</label><input id="spec-ram" type="text" placeholder="16GB DDR5" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-storage" class="block text-xs font-semibold text-navy-800 mb-1">Storage</label><input id="spec-storage" type="text" placeholder="512GB SSD" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-os" class="block text-xs font-semibold text-navy-800 mb-1">OS</label><input id="spec-os" type="text" placeholder="Windows 11 / macOS" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
       } else if (subcat === 'smartphone') {
         container.innerHTML = `
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">RAM / Storage</label><input id="spec-ram-storage" type="text" placeholder="8GB / 256GB" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">IMEI</label><input id="spec-imei" type="text" placeholder="15 digit IMEI" class="w-full text-xs bg-white border border-slate-300 rounded p-2 font-mono"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">OS</label><input id="spec-os" type="text" placeholder="Android 14 / iOS 17" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Warna</label><input id="spec-extra" type="text" placeholder="Black" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label for="spec-ram-storage" class="block text-xs font-semibold text-navy-800 mb-1">RAM / Storage</label><input id="spec-ram-storage" type="text" placeholder="8GB / 256GB" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-imei" class="block text-xs font-semibold text-navy-800 mb-1">IMEI</label><input id="spec-imei" type="text" placeholder="15 digit IMEI" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-os" class="block text-xs font-semibold text-navy-800 mb-1">OS</label><input id="spec-os" type="text" placeholder="Android 14 / iOS 17" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-extra" class="block text-xs font-semibold text-navy-800 mb-1">Warna</label><input id="spec-extra" type="text" placeholder="Black" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
       } else if (subcat === 'ac') {
         container.innerHTML = `
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Kapasitas PK</label><input id="spec-pk" type="text" placeholder="1.5 PK Inverter" class="w-full text-xs bg-white border border-slate-300 rounded p-2 font-bold"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Freon</label><input id="spec-refrigerant" type="text" placeholder="R32" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Voltase</label><input id="spec-volt" type="text" value="220V" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Posisi Outdoor</label><input id="spec-outdoor" type="text" placeholder="Balkon Lt 2" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label for="spec-pk" class="block text-xs font-semibold text-navy-800 mb-1">Kapasitas PK</label><input id="spec-pk" type="text" placeholder="1.5 PK Inverter" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-refrigerant" class="block text-xs font-semibold text-navy-800 mb-1">Freon</label><input id="spec-refrigerant" type="text" placeholder="R32" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-volt" class="block text-xs font-semibold text-navy-800 mb-1">Voltase</label><input id="spec-volt" type="text" value="220V" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-outdoor" class="block text-xs font-semibold text-navy-800 mb-1">Posisi Outdoor</label><input id="spec-outdoor" type="text" placeholder="Balkon Lt 2" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
       } else if (subcat === 'vehicle') {
         container.innerHTML = `
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Transmisi</label><input id="spec-transmission" type="text" placeholder="Automatic" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">BBM</label><input id="spec-fuel" type="text" placeholder="Bensin" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Tahun</label><input id="spec-year" type="text" placeholder="2024" class="w-full text-xs bg-white border border-slate-300 rounded p-2 font-mono"></div>
-          <div><label class="block text-xs font-semibold text-slate-700 mb-1">Kapasitas</label><input id="spec-seats" type="text" placeholder="7 Seater" class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div><label for="spec-transmission" class="block text-xs font-semibold text-navy-800 mb-1">Transmisi</label><input id="spec-transmission" type="text" placeholder="Automatic" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-fuel" class="block text-xs font-semibold text-navy-800 mb-1">BBM</label><input id="spec-fuel" type="text" placeholder="Bensin" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-year" class="block text-xs font-semibold text-navy-800 mb-1">Tahun</label><input id="spec-year" type="text" placeholder="2024" class="w-full text-xs bg-white border border-linen-300 rounded p-2 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
+          <div><label for="spec-seats" class="block text-xs font-semibold text-navy-800 mb-1">Kapasitas</label><input id="spec-seats" type="text" placeholder="7 Seater" class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
       } else {
         container.innerHTML = `
-          <div class="md:col-span-4"><label class="block text-xs font-semibold text-slate-700 mb-1">Keterangan Spesifikasi Bebas</label><input id="spec-general" type="text" placeholder="Rincian..." class="w-full text-xs bg-white border border-slate-300 rounded p-2"></div>
+          <div class="md:col-span-4"><label for="spec-general" class="block text-xs font-semibold text-navy-800 mb-1">Keterangan Spesifikasi Bebas</label><input id="spec-general" type="text" placeholder="Rincian..." class="w-full text-xs bg-white border border-linen-300 rounded p-2 text-navy-900 focus:ring-2 focus:ring-amber-500"></div>
         `;
       }
     }
@@ -3139,7 +3240,7 @@
         return `
           <tr id="asset-row-${a.id}" class="transition-colors ${isSelected ? 'bg-amber-100/60 font-medium' : ''}">
             <td class="td-cell text-center w-10">
-              <input type="checkbox" class="asset-chk-row rounded text-amber-500 focus:ring-amber-500 cursor-pointer w-3.5 h-3.5" 
+              <input type="checkbox" aria-label="Pilih aset ${escapeHtml(a.code)} (${escapeHtml(a.name)})" class="asset-chk-row rounded text-amber-500 focus:ring-amber-500 cursor-pointer w-4 h-4" 
                 value="${a.id}" ${isSelected ? 'checked' : ''} onchange="onAssetRowToggle(${a.id}, this.checked)">
             </td>
             <td class="td-cell font-mono font-bold text-xs text-navy-900 whitespace-nowrap">
@@ -3163,17 +3264,17 @@
             </td>
             <td class="td-cell text-right whitespace-nowrap">
               <div class="inline-flex items-center gap-1">
-                <button onclick="printStickerForAsset(${a.id})" title="Print Stiker" class="p-1.5 text-xs text-navy-800 hover:bg-linen-200 rounded border border-linen-200 transition">
-                  <i class="fa-solid fa-print"></i>
+                <button onclick="printStickerForAsset(${a.id})" title="Print Stiker" aria-label="Cetak stiker aset ${escapeHtml(a.code)}" class="min-w-[28px] min-h-[28px] flex items-center justify-center p-1.5 text-xs text-navy-800 hover:bg-linen-200 rounded border border-linen-200 transition">
+                  <i class="fa-solid fa-print" aria-hidden="true"></i>
                 </button>
-                <button onclick="openBASTModal(${a.id})" title="Cetak BAST" class="p-1.5 text-xs text-navy-900 hover:bg-amber-100 rounded border border-linen-200 transition">
-                  <i class="fa-solid fa-file-contract"></i>
+                <button onclick="openBASTModal(${a.id})" title="Cetak BAST" aria-label="Cetak dokumen BAST aset ${escapeHtml(a.code)}" class="min-w-[28px] min-h-[28px] flex items-center justify-center p-1.5 text-xs text-navy-900 hover:bg-amber-100 rounded border border-linen-200 transition">
+                  <i class="fa-solid fa-file-contract" aria-hidden="true"></i>
                 </button>
-                <button onclick="openHandoverModal(${a.id})" title="Mutasi Pemegang" class="p-1.5 text-xs text-amber-800 hover:bg-amber-100 rounded border border-amber-200 transition">
-                  <i class="fa-solid fa-right-left"></i>
+                <button onclick="openHandoverModal(${a.id})" title="Mutasi Pemegang" aria-label="Mutasi serah terima pemegang aset ${escapeHtml(a.code)}" class="min-w-[28px] min-h-[28px] flex items-center justify-center p-1.5 text-xs text-amber-800 hover:bg-amber-100 rounded border border-amber-200 transition">
+                  <i class="fa-solid fa-right-left" aria-hidden="true"></i>
                 </button>
-                <button onclick="openAssetDetailModal(${a.id})" title="Detail Lengkap" class="p-1.5 text-xs text-navy-700 hover:bg-linen-200 rounded border border-linen-200 transition">
-                  <i class="fa-solid fa-circle-info"></i>
+                <button onclick="openAssetDetailModal(${a.id})" title="Detail Lengkap" aria-label="Lihat rincian detail aset ${escapeHtml(a.code)}" class="min-w-[28px] min-h-[28px] flex items-center justify-center p-1.5 text-xs text-navy-700 hover:bg-linen-200 rounded border border-linen-200 transition">
+                  <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                 </button>
               </div>
             </td>
@@ -3554,7 +3655,7 @@
             <td class="td-cell">${acc.linked_asset_id ? `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold"><i class="fa-solid fa-laptop text-amber-600 mr-1"></i> ${escapeHtml(acc.linked_asset_code)} - ${escapeHtml(acc.linked_asset_name)}</span>` : '<span class="text-navy-700/50 italic text-xs">Standby Gudang</span>'}</td>
             <td class="td-cell text-xs text-navy-800">${escapeHtml(acc.assigned_to_name || '-')}</td>
             <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold border ${acc.status === 'assigned' ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}">${escapeHtml(acc.status)}</span></td>
-            <td class="td-cell text-right"><button onclick="deleteAccessory(${acc.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button></td>
+            <td class="td-cell text-right"><button onclick="deleteAccessory(${acc.id})" aria-label="Hapus aksesoris ${escapeHtml(acc.name)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 rounded transition"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
           </tr>
         `).join('');
       } catch (err) {
@@ -3615,7 +3716,7 @@
         const lowBox = document.getElementById('dash-low-stock-list');
         if (lowBox) {
           const lowItems = state.consumables.filter(c => c.current_stock <= c.min_stock_alert);
-          lowBox.innerHTML = lowItems.length === 0 ? '<p class="text-slate-400 italic text-xs">Semua stok aman.</p>' : lowItems.map(c => `
+          lowBox.innerHTML = lowItems.length === 0 ? '<p class="text-navy-700 italic text-xs">Semua stok aman.</p>' : lowItems.map(c => `
             <div class="flex items-center justify-between p-2 rounded bg-amber-50 border border-amber-200 text-xs">
               <span class="font-bold text-slate-900">${escapeHtml(c.name)}</span>
               <span class="font-extrabold text-rose-600">${Number(c.current_stock)} ${escapeHtml(c.unit)}</span>
@@ -3678,8 +3779,8 @@
             <td class="td-cell text-xs text-navy-700/70 font-mono">${Number(c.min_stock_alert)} ${escapeHtml(c.unit)}</td>
             <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold border ${isLow ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}">${isLow ? 'Kritis' : 'Aman'}</span></td>
             <td class="td-cell text-right whitespace-nowrap">
-              <button onclick="quickConsumableOut(${c.id})" class="px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 rounded border border-amber-300 mr-1 transition"><i class="fa-solid fa-arrow-up"></i> Pakai</button>
-              <button onclick="quickConsumableIn(${c.id})" class="px-2.5 py-1 text-xs font-bold bg-navy-900 text-amber-400 hover:bg-navy-800 rounded border border-navy-800 transition"><i class="fa-solid fa-arrow-down"></i> Restock</button>
+              <button onclick="quickConsumableOut(${c.id})" aria-label="Keluarkan stok barang ${escapeHtml(c.name)}" class="min-w-[28px] min-h-[28px] px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 rounded border border-amber-300 mr-1 transition"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i> Pakai</button>
+              <button onclick="quickConsumableIn(${c.id})" aria-label="Restock persediaan barang ${escapeHtml(c.name)}" class="min-w-[28px] min-h-[28px] px-2.5 py-1 text-xs font-bold bg-navy-900 text-amber-400 hover:bg-navy-800 rounded border border-navy-800 transition"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i> Restock</button>
             </td>
           </tr>
         `;
@@ -3884,20 +3985,20 @@
       tr.className = 'hover:bg-linen-100 csm-new-row';
       tr.innerHTML = `
         <td class="p-2 text-center text-navy-700/60 font-mono text-[11px] row-num">${rowIdx}</td>
-        <td class="p-2"><input type="text" class="csm-name w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" placeholder="Nama ATK / Barang" required></td>
+        <td class="p-2"><input type="text" aria-label="Nama ATK baris ${rowIdx}" class="csm-name w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" placeholder="Nama ATK / Barang" required></td>
         <td class="p-2">
-          <select class="csm-cat w-full text-xs bg-white border border-linen-300 rounded p-1.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+          <select aria-label="Kategori ATK baris ${rowIdx}" class="csm-cat w-full text-xs bg-white border border-linen-300 rounded p-1.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="atk">ATK</option>
             <option value="printer_supplies">Tinta/Toner</option>
             <option value="cables">Kabel</option>
             <option value="other">Lainnya</option>
           </select>
         </td>
-        <td class="p-2"><input type="text" class="csm-unit w-full text-xs bg-white border border-linen-300 rounded p-1.5 text-navy-900 focus:ring-2 focus:ring-amber-500" value="pcs" required></td>
-        <td class="p-2"><input type="number" class="csm-stock w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="0" value="10"></td>
-        <td class="p-2"><input type="number" class="csm-min w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="1" value="5"></td>
+        <td class="p-2"><input type="text" aria-label="Satuan unit baris ${rowIdx}" class="csm-unit w-full text-xs bg-white border border-linen-300 rounded p-1.5 text-navy-900 focus:ring-2 focus:ring-amber-500" value="pcs" required></td>
+        <td class="p-2"><input type="number" aria-label="Stok awal baris ${rowIdx}" class="csm-stock w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="0" value="10"></td>
+        <td class="p-2"><input type="number" aria-label="Batas stok minimum baris ${rowIdx}" class="csm-min w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="1" value="5"></td>
         <td class="p-2 text-center">
-          <button type="button" onclick="removeConsumableMasterRow(this)" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+          <button type="button" onclick="removeConsumableMasterRow(this)" aria-label="Hapus baris ${rowIdx}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-rose-500 hover:text-rose-700 p-1 rounded" title="Hapus baris"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -3970,7 +4071,7 @@
       tr.innerHTML = `
         <td class="p-2 text-center text-navy-700/60 font-mono text-[11px] row-num">${rowIdx}</td>
         <td class="p-2">
-          <select class="csm-in-select w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" onchange="onConsumableRestockSelectChange(this)" required>
+          <select aria-label="Pilih barang restock baris ${rowIdx}" class="csm-in-select w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" onchange="onConsumableRestockSelectChange(this)" required>
             ${getConsumableOptionsHtml(preselectedId)}
           </select>
         </td>
@@ -3978,10 +4079,10 @@
           <span class="csm-in-current-stock px-2 py-0.5 rounded text-xs font-bold bg-linen-100 text-navy-900 border border-linen-200">0</span>
         </td>
         <td class="p-2">
-          <input type="number" class="csm-in-qty w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="1" value="10" required>
+          <input type="number" aria-label="Jumlah restock baris ${rowIdx}" class="csm-in-qty w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="1" value="10" required>
         </td>
         <td class="p-2 text-center">
-          <button type="button" onclick="removeConsumableRestockRow(this)" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+          <button type="button" onclick="removeConsumableRestockRow(this)" aria-label="Hapus baris ${rowIdx}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-rose-500 hover:text-rose-700 p-1 rounded" title="Hapus baris"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -4069,7 +4170,7 @@
       tr.innerHTML = `
         <td class="p-2 text-center text-navy-700/60 font-mono text-[11px] row-num">${rowIdx}</td>
         <td class="p-2">
-          <select class="csm-out-select w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" onchange="onConsumableCheckoutSelectChange(this)" required>
+          <select aria-label="Pilih barang keluar baris ${rowIdx}" class="csm-out-select w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-medium text-navy-900 focus:ring-2 focus:ring-amber-500" onchange="onConsumableCheckoutSelectChange(this)" required>
             ${getConsumableOptionsHtml(preselectedId)}
           </select>
         </td>
@@ -4077,10 +4178,10 @@
           <span class="csm-out-current-stock px-2 py-0.5 rounded text-xs font-bold bg-linen-100 text-navy-900 border border-linen-200">0</span>
         </td>
         <td class="p-2">
-          <input type="number" class="csm-out-qty w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="1" value="1" required>
+          <input type="number" aria-label="Jumlah barang keluar baris ${rowIdx}" class="csm-out-qty w-full text-xs bg-white border border-linen-300 rounded p-1.5 font-bold text-navy-900 focus:ring-2 focus:ring-amber-500" min="1" value="1" required>
         </td>
         <td class="p-2 text-center">
-          <button type="button" onclick="removeConsumableCheckoutRow(this)" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+          <button type="button" onclick="removeConsumableCheckoutRow(this)" aria-label="Hapus baris ${rowIdx}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-rose-500 hover:text-rose-700 p-1 rounded" title="Hapus baris"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -4192,7 +4293,7 @@
         const openBox = document.getElementById('dash-open-tickets-list');
         if (openBox) {
           const openItems = state.tickets.filter(t => t.status === 'open' || t.status === 'in_progress');
-          openBox.innerHTML = openItems.length === 0 ? '<p class="text-slate-400 italic text-xs">Semua tiket selesai.</p>' : openItems.slice(0, 4).map(t => `
+          openBox.innerHTML = openItems.length === 0 ? '<p class="text-navy-700 italic text-xs">Semua tiket selesai.</p>' : openItems.slice(0, 4).map(t => `
             <div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-200 text-xs">
               <div><div class="font-bold text-slate-900">${t.title}</div><div class="text-[10px] text-slate-500 font-mono">${t.ticket_no}</div></div>
               <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${t.status === 'open' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}">${t.status}</span>
@@ -4264,8 +4365,8 @@
           <td class="td-cell">${t.related_asset_id ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 font-mono text-xs px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-link text-[10px] mr-1 text-amber-600"></i>${escapeHtml(t.related_asset_code)}</span>` : '-'}</td>
           <td class="td-cell whitespace-nowrap">${statusMap[t.status] || escapeHtml(t.status)}</td>
           <td class="td-cell text-right whitespace-nowrap">
-            ${t.status !== 'resolved' && t.status !== 'closed' ? `<button onclick="updateTicketStatus(${t.id}, 'resolved')" class="px-2.5 py-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded transition shadow-sm">Selesai</button>` : '<span class="text-xs text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> Selesai</span>'}
-            <button onclick="deleteTicket(${t.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1 ml-1 transition" title="Hapus Tiket"><i class="fa-solid fa-trash"></i></button>
+            ${t.status !== 'resolved' && t.status !== 'closed' ? `<button onclick="updateTicketStatus(${t.id}, 'resolved')" aria-label="Tandai tiket ${escapeHtml(t.ticket_no)} selesai" class="min-w-[28px] min-h-[28px] px-2.5 py-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded transition shadow-sm">Selesai</button>` : '<span class="text-xs text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> Selesai</span>'}
+            <button onclick="deleteTicket(${t.id})" aria-label="Hapus tiket ${escapeHtml(t.ticket_no)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 ml-1 rounded transition" title="Hapus Tiket"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
           </td>
         </tr>
       `).join('');
@@ -4353,6 +4454,23 @@
       } catch (err) {
         alert(err.message);
       }
+    }
+    // Global accessibility observer to ensure dynamically generated elements (e.g. QRCode <img>) always satisfy WCAG 2.2 AA SC 1.1.1
+    if (typeof MutationObserver !== 'undefined') {
+      const a11yObserver = new MutationObserver(mutations => {
+        mutations.forEach(m => {
+          m.addedNodes.forEach(node => {
+            if (node.nodeName === 'IMG' && !node.hasAttribute('alt')) {
+              node.setAttribute('alt', 'QR Code Aset');
+            } else if (node.querySelectorAll) {
+              node.querySelectorAll('img:not([alt])').forEach(img => {
+                img.setAttribute('alt', 'QR Code Aset');
+              });
+            }
+          });
+        });
+      });
+      a11yObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
   </script>
 </body>
