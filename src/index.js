@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -36,8 +37,16 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({ origin: true, credentials: true }));
+app.use(compression({
+  threshold: 1024,
+  level: 6
+}));
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../public'), {
+  maxAge: '1h',
+  etag: true,
+  lastModified: true
+}));
 
 // Domain Routes
 app.use('/api/auth', authRoutes);

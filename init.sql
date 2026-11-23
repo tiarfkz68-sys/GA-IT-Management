@@ -246,3 +246,18 @@ INSERT INTO activity_logs (user_name, action, target_type, target_id, details) V
 ('System', 'INITIALIZE', 'SETTINGS', 1, 'Inisialisasi sistem GA & IT Workbench v2'),
 ('Rian Pratama', 'CREATE_ASSET', 'ASSET', 1, 'Mendaftarkan unit MacBook Pro M3 Pro 14" (IT-LPT-001)'),
 ('Rian Pratama', 'HANDOVER_ASSET', 'ASSET', 1, 'Menyerahkan IT-LPT-001 ke Budi Santoso (BAST/2026/01/001)');
+
+
+-- ============================================================
+-- Indexes for High Performance & Query Optimization
+-- ============================================================
+CREATE INDEX IF NOT EXISTS idx_accessories_linked_asset ON accessories(linked_asset_id) WHERE linked_asset_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_asset_maint_asset_id ON asset_maintenances(asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_history_asset_id ON asset_user_history(asset_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assets_assigned_to ON assets(assigned_to_user_id);
+CREATE INDEX IF NOT EXISTS idx_assets_status_cat ON assets(status, category);
+CREATE INDEX IF NOT EXISTS idx_assets_created_at ON assets(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tickets_related_asset ON tickets(related_asset_id) WHERE related_asset_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_consumable_checkouts_csm ON consumable_checkouts(consumable_id, checkout_date DESC);

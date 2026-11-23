@@ -7,13 +7,42 @@ import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 const router = Router();
 
 // ============================================================
+// IN-MEMORY CACHE FOR HIGH-FREQUENCY READS (TTL 60s + EVENT INVALIDATION)
+// ============================================================
+let settingsCache = null;
+let settingsCacheExpires = 0;
+let categoriesCache = null;
+let categoriesCacheExpires = 0;
+const CACHE_TTL_MS = 60 * 1000;
+
+export function invalidateSettingsCache() {
+  settingsCache = null;
+  settingsCacheExpires = 0;
+}
+
+export function invalidateCategoriesCache() {
+  categoriesCache = null;
+  categoriesCacheExpires = 0;
+}
+
+// ============================================================
 // APP SETTINGS & BRANDING API
 // ============================================================
 router.get('/settings', optionalAuth, async (req, res) => {
   try {
+    const now = Date.now();
+    if (settingsCache && now < settingsCacheExpires) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(settingsCache);
+    }
+
     const result = await query(`SELECT key, value FROM app_settings`);
     const settings = {};
     result.rows.forEach(r => { settings[r.key] = r.value; });
+
+    settingsCache = settings;
+    settingsCacheExpires = now + CACHE_TTL_MS;
+    res.setHeader('X-Cache', 'MISS');
     res.json(settings);
   } catch (err) {
     sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
@@ -33,6 +62,7 @@ router.put('/settings', authenticate, requireRole('admin'), async (req, res) => 
        ON CONFLICT (key) DO UPDATE SET value = $2::jsonb RETURNING *`,
       [key, JSON.stringify(value)]
     );
+    invalidateSettingsCache();
     await logActivity(req.user.name, 'UPDATE_SETTINGS', 'SETTINGS', null, `Mengubah pengaturan: ${key}`);
     res.json(result.rows[0]);
   } catch (err) {
@@ -45,7 +75,16 @@ router.put('/settings', authenticate, requireRole('admin'), async (req, res) => 
 // ============================================================
 router.get('/categories', optionalAuth, async (req, res) => {
   try {
+    const now = Date.now();
+    if (categoriesCache && now < categoriesCacheExpires) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(categoriesCache);
+    }
+
     const result = await query(`SELECT * FROM categories ORDER BY domain ASC, name ASC`);
+    categoriesCache = result.rows;
+    categoriesCacheExpires = now + CACHE_TTL_MS;
+    res.setHeader('X-Cache', 'MISS');
     res.json(result.rows);
   } catch (err) {
     sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
@@ -69,6 +108,7 @@ router.post('/categories', authenticate, requireRole('admin', 'it', 'ga'), async
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [domain, cleanCode, name.trim(), tag_prefix.toUpperCase().trim(), icon]
     );
+    invalidateCategoriesCache();
     await logActivity(req.user.name, 'CREATE_CATEGORY', 'SETTINGS', result.rows[0].id, `Menambah kategori: [${domain}] ${name}`);
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -88,6 +128,7 @@ router.delete('/categories/:id', authenticate, requireRole('admin'), async (req,
       return sendError(res, 404, 'Kategori tidak ditemukan.', 'NOT_FOUND');
     }
     await query(`DELETE FROM categories WHERE id = $1`, [id]);
+    invalidateCategoriesCache();
     await logActivity(req.user.name, 'DELETE_CATEGORY', 'SETTINGS', id, `Menghapus kategori: ${cat.rows[0]?.name || id}`);
     res.json({ message: 'Kategori berhasil dihapus' });
   } catch (err) {
