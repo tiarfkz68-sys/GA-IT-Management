@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool, query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
+import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -211,8 +212,11 @@ router.patch('/batch-status', async (req, res) => {
   }
 });
 
-// Batch Hapus Aset
-router.post('/batch-delete', async (req, res) => {
+// Batch Hapus Aset (Admin only)
+router.post('/batch-delete', optionalAuth, async (req, res) => {
+  if (req.user && req.user.role !== 'admin') {
+    return sendError(res, 403, 'Hanya Administrator yang berwenang menghapus aset massal.', 'FORBIDDEN');
+  }
   const { asset_ids = [], userName } = req.body;
   if (!Array.isArray(asset_ids) || asset_ids.length === 0) {
     return sendError(res, 400, 'Daftar aset tidak boleh kosong', 'VALIDATION_ERROR');
@@ -425,9 +429,12 @@ router.get('/:id/history', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', optionalAuth, async (req, res) => {
+  if (req.user && !['admin', 'it', 'ga'].includes(req.user.role)) {
+    return sendError(res, 403, 'Akses ditolak. Anda tidak berwenang menghapus aset.', 'FORBIDDEN');
+  }
   const { id } = req.params;
-  const { userName } = req.query;
+  const userName = req.user?.name || req.query.userName;
   try {
     const asset = await query(`SELECT code, name FROM assets WHERE id = $1`, [id]);
     if (asset.rows.length === 0) {

@@ -93,7 +93,7 @@ router.post('/batch-restock', async (req, res) => {
     await client.query('BEGIN');
     const restocked = [];
     for (const it of items) {
-      const cid = parseInt(it.consumable_id, 10);
+      const cid = parseInt(it.consumable_id || it.id, 10);
       const qty = parseInt(it.quantity, 10);
       if (!cid || !qty || qty <= 0) continue;
 
@@ -128,7 +128,7 @@ router.post('/batch-checkout', async (req, res) => {
     await client.query('BEGIN');
     // 1. Validasi kecukupan stok semua item terlebih dahulu dengan row lock FOR UPDATE
     for (const it of items) {
-      const cid = parseInt(it.consumable_id, 10);
+      const cid = parseInt(it.consumable_id || it.id, 10);
       const qty = parseInt(it.quantity, 10);
       if (!cid || !qty || qty <= 0) continue;
 
@@ -147,7 +147,7 @@ router.post('/batch-checkout', async (req, res) => {
     // 2. Eksekusi pengurangan stok & pencatatan log checkout
     const checkedOut = [];
     for (const it of items) {
-      const cid = parseInt(it.consumable_id, 10);
+      const cid = parseInt(it.consumable_id || it.id, 10);
       const qty = parseInt(it.quantity, 10);
       if (!cid || !qty || qty <= 0) continue;
 

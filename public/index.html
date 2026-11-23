@@ -1996,6 +1996,42 @@
   <!-- JAVASCRIPT APPLICATION CORE V2 -->
   <!-- ========================================================= -->
   <script>
+    // Universal HTML entity encoder to eliminate Stored XSS vulnerabilities (OWASP A03)
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Global fetch interceptor: attach Authorization Bearer token automatically and handle session expiry
+    const _nativeFetch = window.fetch;
+    window.fetch = async function(resource, init = {}) {
+      init.headers = init.headers || {};
+      const token = localStorage.getItem('gait_token');
+      if (token && typeof resource === 'string' && resource.startsWith('/api') && !resource.startsWith('/api/auth/login')) {
+        if (init.headers instanceof Headers) {
+          if (!init.headers.has('Authorization')) init.headers.set('Authorization', `Bearer ${token}`);
+        } else if (Array.isArray(init.headers)) {
+          init.headers.push(['Authorization', `Bearer ${token}`]);
+        } else {
+          if (!init.headers['Authorization']) init.headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+      const response = await _nativeFetch(resource, init);
+      if (response.status === 401 && typeof resource === 'string' && !resource.startsWith('/api/auth/login')) {
+        state.currentUser = null;
+        localStorage.removeItem('gait_user');
+        localStorage.removeItem('gait_token');
+        openModal('modal-login');
+        showToast('Sesi Anda telah kedaluwarsa. Silakan login kembali.', false);
+      }
+      return response;
+    };
+
     const state = {
       currentUser: null,
       settings: {
@@ -2095,6 +2131,9 @@
         const data = await res.json();
         state.currentUser = data.user;
         localStorage.setItem('gait_user', JSON.stringify(data.user));
+        if (data.token) {
+          localStorage.setItem('gait_token', data.token);
+        }
         updateUserUI();
         closeModal('modal-login');
         showToast(`Selamat datang, ${state.currentUser.name}!`);
@@ -2113,6 +2152,7 @@
       if (!confirm('Yakin ingin keluar akun?')) return;
       state.currentUser = null;
       localStorage.removeItem('gait_user');
+      localStorage.removeItem('gait_token');
       openModal('modal-login');
     }
 
@@ -2224,10 +2264,10 @@
       if (!tbody) return;
       tbody.innerHTML = items.map(c => `
         <tr>
-          <td class="td-cell font-bold ${c.domain === 'IT' ? 'text-amber-600' : 'text-navy-900'}">${c.domain}</td>
-          <td class="td-cell font-semibold text-navy-900">${c.name}</td>
-          <td class="td-cell font-mono text-xs text-navy-700">${c.code}</td>
-          <td class="td-cell font-mono font-bold text-xs text-navy-900">${c.tag_prefix}</td>
+          <td class="td-cell font-bold ${c.domain === 'IT' ? 'text-amber-600' : 'text-navy-900'}">${escapeHtml(c.domain)}</td>
+          <td class="td-cell font-semibold text-navy-900">${escapeHtml(c.name)}</td>
+          <td class="td-cell font-mono text-xs text-navy-700">${escapeHtml(c.code)}</td>
+          <td class="td-cell font-mono font-bold text-xs text-navy-900">${escapeHtml(c.tag_prefix)}</td>
           <td class="td-cell text-right">
             <button onclick="deleteCategory(${c.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button>
           </td>
@@ -2279,7 +2319,7 @@
         const res = await fetch('/api/users');
         state.users = await res.json();
         renderUsersTable(state.users);
-        const optionsHtml = state.users.map(u => `<option value="${u.id}">${u.name} (${u.role.toUpperCase()})</option>`).join('');
+        const optionsHtml = state.users.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml((u.role || '').toUpperCase())})</option>`).join('');
         document.getElementById('new-assigned-user').innerHTML = '<option value="">-- Belum Di-assign (Di Gudang) --</option>' + optionsHtml;
         document.getElementById('ticket-requester').innerHTML = optionsHtml;
         document.getElementById('acc-user').innerHTML = '<option value="">-- Tidak Terkait User --</option>' + optionsHtml;
@@ -2302,10 +2342,10 @@
       };
       tbody.innerHTML = items.map(u => `
         <tr>
-          <td class="td-cell font-bold text-navy-900">${u.name}</td>
-          <td class="td-cell text-xs font-mono text-navy-700">${u.email}</td>
+          <td class="td-cell font-bold text-navy-900">${escapeHtml(u.name)}</td>
+          <td class="td-cell text-xs font-mono text-navy-700">${escapeHtml(u.email)}</td>
           <td class="td-cell">
-            <span class="px-2 py-0.5 rounded text-[11px] font-bold border uppercase ${roleBadges[u.role] || 'bg-linen-100 text-navy-800 border-linen-200'}">${u.role}</span>
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold border uppercase ${roleBadges[u.role] || 'bg-linen-100 text-navy-800 border-linen-200'}">${escapeHtml(u.role)}</span>
           </td>
           <td class="td-cell">
             <span class="px-2 py-0.5 rounded text-[11px] font-semibold ${u.is_active ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">${u.is_active ? 'Aktif' : 'Non-aktif'}</span>
@@ -2369,10 +2409,10 @@
         tbody.innerHTML = logs.map(l => `
           <tr>
             <td class="td-cell text-xs font-mono text-navy-700/70 whitespace-nowrap">${new Date(l.created_at).toLocaleString('id-ID')}</td>
-            <td class="td-cell font-semibold text-navy-900">${l.user_name}</td>
-            <td class="td-cell font-mono font-bold text-xs text-amber-600">${l.action}</td>
-            <td class="td-cell text-xs text-navy-700/80">${l.target_type}</td>
-            <td class="td-cell text-xs text-navy-800">${l.details}</td>
+            <td class="td-cell font-semibold text-navy-900">${escapeHtml(l.user_name)}</td>
+            <td class="td-cell font-mono font-bold text-xs text-amber-600">${escapeHtml(l.action)}</td>
+            <td class="td-cell text-xs text-navy-700/80">${escapeHtml(l.target_type)}</td>
+            <td class="td-cell text-xs text-navy-800">${escapeHtml(l.details)}</td>
           </tr>
         `).join('');
       } catch (err) {
@@ -2520,12 +2560,14 @@
       });
     }
 
-    function printStickerForAsset(asset) {
+    function printStickerForAsset(assetOrId) {
+      const asset = (typeof assetOrId === 'object' && assetOrId !== null) ? assetOrId : state.assets.find(item => item.id === assetOrId);
+      if (!asset) return;
       const w = parseInt(document.getElementById('label-width-mm').value, 10) || 50;
       const h = parseInt(document.getElementById('label-height-mm').value, 10) || 30;
-      const comp = state.settings.general.company_name || 'PT NUSA PERSADA UTAMA';
+      const comp = state.settings.general?.company_name || 'PT NUSA PERSADA UTAMA';
 
-      const specsText = Object.values(asset.specs || {}).slice(0, 2).join(' • ');
+      const specsText = Object.values(asset.specs || {}).slice(0, 2).map(s => escapeHtml(s)).join(' • ');
 
       const container = document.getElementById('printable-sticker');
       container.innerHTML = `
@@ -2544,13 +2586,13 @@
           }
         </style>
         <div id="sticker-card">
-          <div style="font-size: 7pt; font-weight: bold; margin-bottom: 1mm;">${comp}</div>
+          <div style="font-size: 7pt; font-weight: bold; margin-bottom: 1mm;">${escapeHtml(comp)}</div>
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-              <div style="font-size: 10pt; font-family: monospace; font-weight: 900; border: 1px solid black; padding: 0.5mm 1mm; display: inline-block;">${asset.code}</div>
-              <div style="font-size: 7pt; font-weight: bold; margin-top: 1mm; max-width: 32mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${asset.name}</div>
+              <div style="font-size: 10pt; font-family: monospace; font-weight: 900; border: 1px solid black; padding: 0.5mm 1mm; display: inline-block;">${escapeHtml(asset.code)}</div>
+              <div style="font-size: 7pt; font-weight: bold; margin-top: 1mm; max-width: 32mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(asset.name)}</div>
               <div style="font-size: 6pt; font-family: monospace; margin-top: 0.5mm;">${specsText}</div>
-              <div style="font-size: 5.5pt; font-family: monospace; margin-top: 0.5mm;">SN: ${asset.serial_number || '-'}</div>
+              <div style="font-size: 5.5pt; font-family: monospace; margin-top: 0.5mm;">SN: ${escapeHtml(asset.serial_number || '-')}</div>
             </div>
             <div id="print-qr-box" style="width: 16mm; height: 16mm;"></div>
           </div>
@@ -2606,8 +2648,11 @@
     // MUTASI / SERAH TERIMA PEMEGANG
     // ============================================================
     function openHandoverModal(assetId, code, name) {
+      const asset = state.assets.find(item => item.id === assetId);
+      const displayCode = code || asset?.code || '';
+      const displayName = name || asset?.name || '';
       document.getElementById('handover-asset-id').value = assetId;
-      document.getElementById('handover-asset-label').innerText = `[${code}] ${name}`;
+      document.getElementById('handover-asset-label').innerText = `[${displayCode}] ${displayName}`;
       openModal('modal-handover');
     }
 
@@ -2673,14 +2718,14 @@
       const entries = Object.entries(specs);
       specsContainer.innerHTML = entries.length === 0
         ? '<span class="text-navy-700/60 italic col-span-2">Tidak ada spesifikasi tercatat</span>'
-        : entries.map(([k, v]) => `<div><span class="text-[10px] uppercase font-bold text-navy-700 block">${k.replace('_', ' ')}</span><span class="font-bold text-navy-900 text-xs">${v || '-'}</span></div>`).join('');
+        : entries.map(([k, v]) => `<div><span class="text-[10px] uppercase font-bold text-navy-700 block">${escapeHtml(k.replace('_', ' '))}</span><span class="font-bold text-navy-900 text-xs">${escapeHtml(v || '-')}</span></div>`).join('');
 
       // Render Accessories
       const accContainer = document.getElementById('detail-asset-accessories');
       const accs = asset.linked_accessories || [];
       accContainer.innerHTML = accs.length === 0
         ? '<span class="text-navy-700/60 italic">Tidak ada aksesoris yang terpasang pada unit ini.</span>'
-        : accs.map(acc => `<div class="flex items-center justify-between p-2 rounded bg-linen-100 border border-linen-200 text-xs"><span class="font-bold text-navy-900"><i class="fa-solid fa-paperclip text-amber-600 mr-1"></i> ${acc.name}</span><span class="capitalize text-[11px] text-amber-700 font-bold">${acc.category}</span></div>`).join('');
+        : accs.map(acc => `<div class="flex items-center justify-between p-2 rounded bg-linen-100 border border-linen-200 text-xs"><span class="font-bold text-navy-900"><i class="fa-solid fa-paperclip text-amber-600 mr-1"></i> ${escapeHtml(acc.name)}</span><span class="capitalize text-[11px] text-amber-700 font-bold">${escapeHtml(acc.category)}</span></div>`).join('');
 
       // Load History Timeline
       try {
@@ -2694,11 +2739,11 @@
           : hData.handovers.map(h => `
             <div class="p-2.5 rounded bg-linen-100 border border-linen-200 text-xs">
               <div class="flex items-center justify-between font-bold text-navy-900">
-                <span>${h.action_type === 'checkout' ? 'Diserahkan ke: ' + (h.to_user_name || 'Staff') : 'Dikembalikan ke Gudang'}</span>
-                <span class="text-[10px] font-mono text-amber-600 font-bold">${h.bast_number || '-'}</span>
+                <span>${h.action_type === 'checkout' ? 'Diserahkan ke: ' + escapeHtml(h.to_user_name || 'Staff') : 'Dikembalikan ke Gudang'}</span>
+                <span class="text-[10px] font-mono text-amber-600 font-bold">${escapeHtml(h.bast_number || '-')}</span>
               </div>
-              <div class="text-[11px] text-navy-700/70 mt-0.5">Kondisi: ${h.condition} • ${new Date(h.created_at).toLocaleDateString('id-ID')}</div>
-              ${h.notes ? `<div class="text-[10px] text-navy-800 mt-1 italic">Catatan: ${h.notes}</div>` : ''}
+              <div class="text-[11px] text-navy-700/70 mt-0.5">Kondisi: ${escapeHtml(h.condition)} • ${new Date(h.created_at).toLocaleDateString('id-ID')}</div>
+              ${h.notes ? `<div class="text-[10px] text-navy-800 mt-1 italic">Catatan: ${escapeHtml(h.notes)}</div>` : ''}
             </div>
           `).join('');
 
@@ -2709,11 +2754,11 @@
           : hData.maintenances.map(m => `
             <div class="p-2.5 rounded bg-linen-100 border border-linen-200 text-xs">
               <div class="flex items-center justify-between font-bold text-navy-900">
-                <span class="capitalize">${m.type.replace('_', ' ')}</span>
+                <span class="capitalize">${escapeHtml(m.type.replace('_', ' '))}</span>
                 <span class="text-amber-700 font-mono font-bold">Rp ${Number(m.cost).toLocaleString('id-ID')}</span>
               </div>
-              <div class="text-[11px] text-navy-700/70">${new Date(m.maintenance_date).toLocaleDateString('id-ID')} • Vendor: ${m.vendor || '-'}</div>
-              <p class="text-navy-800 mt-1">${m.notes || '-'}</p>
+              <div class="text-[11px] text-navy-700/70">${new Date(m.maintenance_date).toLocaleDateString('id-ID')} • Vendor: ${escapeHtml(m.vendor || '-')}</div>
+              <p class="text-navy-800 mt-1">${escapeHtml(m.notes || '-')}</p>
             </div>
           `).join('');
 
@@ -2724,7 +2769,7 @@
           : hData.logs.map(l => `
             <div class="p-2 rounded bg-linen-100 border border-linen-200 text-[11px]">
               <div class="text-navy-700/60 text-[10px] font-mono">${new Date(l.created_at).toLocaleString('id-ID')}</div>
-              <div class="font-bold text-navy-900">${l.user_name}: <span class="font-normal text-navy-800">${l.details}</span></div>
+              <div class="font-bold text-navy-900">${escapeHtml(l.user_name)}: <span class="font-normal text-navy-800">${escapeHtml(l.details)}</span></div>
             </div>
           `).join('');
       } catch (err) {
@@ -2761,7 +2806,7 @@
       const subcatSelect = document.getElementById('new-subcategory');
       const filtered = state.categories.filter(c => c.domain === cat);
       
-      subcatSelect.innerHTML = filtered.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+      subcatSelect.innerHTML = filtered.map(c => `<option value="${escapeHtml(c.code)}">${escapeHtml(c.name)}</option>`).join('');
       renderDynamicSpecsForm();
     }
 
@@ -3070,16 +3115,16 @@
         const isSelected = state.selectedAssetIds.has(a.id);
         const specs = a.specs || {};
         let specBadges = [];
-        if (specs.processor) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${specs.processor}</span>`);
-        if (specs.ram) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${specs.ram}</span>`);
-        if (specs.storage) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${specs.storage}</span>`);
-        if (specs.capacity_pk) specBadges.push(`<span class="inline-block bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-bold mr-1 mb-1">${specs.capacity_pk}</span>`);
-        if (specs.imei) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">IMEI: ${specs.imei}</span>`);
+        if (specs.processor) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${escapeHtml(specs.processor)}</span>`);
+        if (specs.ram) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${escapeHtml(specs.ram)}</span>`);
+        if (specs.storage) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">${escapeHtml(specs.storage)}</span>`);
+        if (specs.capacity_pk) specBadges.push(`<span class="inline-block bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-bold mr-1 mb-1">${escapeHtml(specs.capacity_pk)}</span>`);
+        if (specs.imei) specBadges.push(`<span class="inline-block bg-linen-100 text-navy-800 border border-linen-200 px-1.5 py-0.5 rounded text-[11px] font-mono mr-1 mb-1">IMEI: ${escapeHtml(specs.imei)}</span>`);
         const specHtml = specBadges.length > 0 ? specBadges.join('') : '<span class="text-navy-700/60 text-xs italic">-</span>';
 
         const accs = a.linked_accessories || [];
         const accHtml = accs.length > 0
-          ? accs.map(acc => `<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 text-[11px] px-1.5 py-0.5 rounded font-medium mr-1 mb-1"><i class="fa-solid fa-paperclip text-[9px] text-amber-600"></i> ${acc.name}</span>`).join('')
+          ? accs.map(acc => `<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 text-[11px] px-1.5 py-0.5 rounded font-medium mr-1 mb-1"><i class="fa-solid fa-paperclip text-[9px] text-amber-600"></i> ${escapeHtml(acc.name)}</span>`).join('')
           : '<span class="text-navy-700/60 text-xs italic">-</span>';
 
         const statusConfig = {
@@ -3098,33 +3143,33 @@
                 value="${a.id}" ${isSelected ? 'checked' : ''} onchange="onAssetRowToggle(${a.id}, this.checked)">
             </td>
             <td class="td-cell font-mono font-bold text-xs text-navy-900 whitespace-nowrap">
-              <span class="bg-linen-100 px-2 py-1 rounded border border-linen-300 inline-block">${a.code}</span>
+              <span class="bg-linen-100 px-2 py-1 rounded border border-linen-300 inline-block">${escapeHtml(a.code)}</span>
             </td>
             <td class="td-cell">
-              <div class="font-bold text-navy-900">${a.name}</div>
+              <div class="font-bold text-navy-900">${escapeHtml(a.name)}</div>
               <div class="text-[11px] text-navy-700/70 flex items-center gap-1 mt-0.5">
-                <span class="font-bold">${a.category}</span> • <span class="capitalize">${a.subcategory}</span>
-                ${a.serial_number ? `• SN: <span class="font-mono text-navy-800">${a.serial_number}</span>` : ''}
+                <span class="font-bold">${escapeHtml(a.category)}</span> • <span class="capitalize">${escapeHtml(a.subcategory)}</span>
+                ${a.serial_number ? `• SN: <span class="font-mono text-navy-800">${escapeHtml(a.serial_number)}</span>` : ''}
               </div>
             </td>
             <td class="td-cell"><div class="flex flex-wrap items-center max-w-sm">${specHtml}</div></td>
             <td class="td-cell"><div class="flex flex-wrap items-center max-w-xs">${accHtml}</div></td>
             <td class="td-cell whitespace-nowrap">
-              <div class="font-semibold text-navy-900 text-xs">${a.assigned_to_name || '<span class="text-navy-700/60 font-normal italic">Gudang / Standby</span>'}</div>
-              <div class="text-[11px] text-navy-700/70 mt-0.5"><i class="fa-solid fa-location-dot text-[9px] text-amber-600"></i> ${a.location}</div>
+              <div class="font-semibold text-navy-900 text-xs">${a.assigned_to_name ? escapeHtml(a.assigned_to_name) : '<span class="text-navy-700/60 font-normal italic">Gudang / Standby</span>'}</div>
+              <div class="text-[11px] text-navy-700/70 mt-0.5"><i class="fa-solid fa-location-dot text-[9px] text-amber-600"></i> ${escapeHtml(a.location)}</div>
             </td>
             <td class="td-cell whitespace-nowrap">
-              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${st.bg}">${st.label}</span>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${st.bg}">${escapeHtml(st.label)}</span>
             </td>
             <td class="td-cell text-right whitespace-nowrap">
               <div class="inline-flex items-center gap-1">
-                <button onclick="printStickerForAsset(${JSON.stringify(a).replace(/"/g, '&quot;')})" title="Print Stiker" class="p-1.5 text-xs text-navy-800 hover:bg-linen-200 rounded border border-linen-200 transition">
+                <button onclick="printStickerForAsset(${a.id})" title="Print Stiker" class="p-1.5 text-xs text-navy-800 hover:bg-linen-200 rounded border border-linen-200 transition">
                   <i class="fa-solid fa-print"></i>
                 </button>
                 <button onclick="openBASTModal(${a.id})" title="Cetak BAST" class="p-1.5 text-xs text-navy-900 hover:bg-amber-100 rounded border border-linen-200 transition">
                   <i class="fa-solid fa-file-contract"></i>
                 </button>
-                <button onclick="openHandoverModal(${a.id}, '${a.code}', '${a.name}')" title="Mutasi Pemegang" class="p-1.5 text-xs text-amber-800 hover:bg-amber-100 rounded border border-amber-200 transition">
+                <button onclick="openHandoverModal(${a.id})" title="Mutasi Pemegang" class="p-1.5 text-xs text-amber-800 hover:bg-amber-100 rounded border border-amber-200 transition">
                   <i class="fa-solid fa-right-left"></i>
                 </button>
                 <button onclick="openAssetDetailModal(${a.id})" title="Detail Lengkap" class="p-1.5 text-xs text-navy-700 hover:bg-linen-200 rounded border border-linen-200 transition">
@@ -3278,13 +3323,13 @@
       const listEl = document.getElementById('batch-handover-selected-list');
       listEl.innerHTML = selected.map(a => `
         <span class="inline-flex items-center gap-1 bg-white text-navy-900 border border-linen-300 rounded px-2 py-0.5 text-xs font-mono font-semibold shadow-2xs">
-          <span class="text-amber-600 font-bold">${a.code}</span>
-          <span class="text-navy-700/70 font-sans font-normal truncate max-w-[120px]">${a.name}</span>
+          <span class="text-amber-600 font-bold">${escapeHtml(a.code)}</span>
+          <span class="text-navy-700/70 font-sans font-normal truncate max-w-[120px]">${escapeHtml(a.name)}</span>
         </span>
       `).join('');
 
       // Populate user dropdown
-      const optionsHtml = state.users.map(u => `<option value="${u.id}">${u.name} (${u.role.toUpperCase()})</option>`).join('');
+      const optionsHtml = state.users.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml((u.role || '').toUpperCase())})</option>`).join('');
       document.getElementById('batch-handover-target-user').innerHTML = optionsHtml;
 
       toggleBatchHandoverUserSelect();
@@ -3364,22 +3409,22 @@
       // Render Items Table
       const tbody = document.getElementById('bbast-items-table-body');
       tbody.innerHTML = assets.map((a, idx) => {
-        const specsText = Object.entries(a.specs || {}).map(([k, v]) => `${k.toUpperCase()}: ${v}`).join(', ') || '-';
-        const accsText = (a.linked_accessories || []).map(acc => acc.name).join(', ') || 'Unit Utama Standar';
+        const specsText = Object.entries(a.specs || {}).map(([k, v]) => `${escapeHtml(k.toUpperCase())}: ${escapeHtml(v)}`).join(', ') || '-';
+        const accsText = (a.linked_accessories || []).map(acc => escapeHtml(acc.name)).join(', ') || 'Unit Utama Standar';
         return `
           <tr>
             <td class="border border-slate-300 px-2 py-1.5 text-center font-mono">${idx + 1}</td>
-            <td class="border border-slate-300 px-2 py-1.5 font-mono font-bold text-slate-900">${a.code}</td>
+            <td class="border border-slate-300 px-2 py-1.5 font-mono font-bold text-slate-900">${escapeHtml(a.code)}</td>
             <td class="border border-slate-300 px-2 py-1.5">
-              <div class="font-bold">${a.name}</div>
-              <div class="text-[10px] text-slate-500">${a.category} • ${a.subcategory}</div>
+              <div class="font-bold">${escapeHtml(a.name)}</div>
+              <div class="text-[10px] text-slate-500">${escapeHtml(a.category)} • ${escapeHtml(a.subcategory)}</div>
             </td>
-            <td class="border border-slate-300 px-2 py-1.5 font-mono text-[10px]">${a.serial_number || '-'}</td>
+            <td class="border border-slate-300 px-2 py-1.5 font-mono text-[10px]">${escapeHtml(a.serial_number || '-')}</td>
             <td class="border border-slate-300 px-2 py-1.5 text-[10px]">
               <div>${specsText}</div>
               <div class="text-purple-700 font-semibold mt-0.5"><i class="fa-solid fa-paperclip text-[9px]"></i> ${accsText}</div>
             </td>
-            <td class="border border-slate-300 px-2 py-1.5 text-center font-semibold">${condition}</td>
+            <td class="border border-slate-300 px-2 py-1.5 text-center font-semibold">${escapeHtml(condition)}</td>
           </tr>
         `;
       }).join('');
@@ -3477,21 +3522,21 @@
       if (!tbody) return;
       tbody.innerHTML = items.slice(0, 5).map(a => `
         <tr>
-          <td class="td-cell font-mono font-bold text-xs text-navy-900">${a.code}</td>
-          <td class="td-cell font-semibold text-navy-900">${a.name}</td>
-          <td class="td-cell text-xs capitalize text-navy-700/70">${a.subcategory}</td>
-          <td class="td-cell text-xs text-navy-800">${a.assigned_to_name || 'Gudang'}</td>
-          <td class="td-cell text-xs"><span class="px-2 py-0.5 rounded text-[10px] font-semibold border ${a.status === 'available' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-900 border-amber-300 font-bold'}">${a.status}</span></td>
+          <td class="td-cell font-mono font-bold text-xs text-navy-900">${escapeHtml(a.code)}</td>
+          <td class="td-cell font-semibold text-navy-900">${escapeHtml(a.name)}</td>
+          <td class="td-cell text-xs capitalize text-navy-700/70">${escapeHtml(a.subcategory)}</td>
+          <td class="td-cell text-xs text-navy-800">${a.assigned_to_name ? escapeHtml(a.assigned_to_name) : 'Gudang'}</td>
+          <td class="td-cell text-xs"><span class="px-2 py-0.5 rounded text-[10px] font-semibold border ${a.status === 'available' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-900 border-amber-300 font-bold'}">${escapeHtml(a.status)}</span></td>
         </tr>
       `).join('');
     }
 
     function updateAssetDropdowns(items) {
-      const options = '<option value="">-- Tidak Ditautkan ke Aset --</option>' + items.map(a => `<option value="${a.id}">[${a.code}] ${a.name}</option>`).join('');
+      const options = '<option value="">-- Tidak Ditautkan ke Aset --</option>' + items.map(a => `<option value="${a.id}">[${escapeHtml(a.code)}] ${escapeHtml(a.name)}</option>`).join('');
       const accSelect = document.getElementById('acc-link-asset');
       if (accSelect) accSelect.innerHTML = options;
       const ticketSelect = document.getElementById('ticket-asset');
-      if (ticketSelect) ticketSelect.innerHTML = '<option value="">-- Tidak Terkait Aset --</option>' + items.map(a => `<option value="${a.id}">[${a.code}] ${a.name}</option>`).join('');
+      if (ticketSelect) ticketSelect.innerHTML = '<option value="">-- Tidak Terkait Aset --</option>' + items.map(a => `<option value="${a.id}">[${escapeHtml(a.code)}] ${escapeHtml(a.name)}</option>`).join('');
     }
 
     // Accessories
@@ -3503,12 +3548,12 @@
         if (!tbody) return;
         tbody.innerHTML = state.accessories.map(acc => `
           <tr>
-            <td class="td-cell font-bold text-navy-900">${acc.name}</td>
-            <td class="td-cell capitalize text-xs text-navy-700/80">${acc.category}</td>
-            <td class="td-cell font-mono text-xs text-navy-700/70">${acc.serial_number || '-'}</td>
-            <td class="td-cell">${acc.linked_asset_id ? `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold"><i class="fa-solid fa-laptop text-amber-600 mr-1"></i> ${acc.linked_asset_code} - ${acc.linked_asset_name}</span>` : '<span class="text-navy-700/50 italic text-xs">Standby Gudang</span>'}</td>
-            <td class="td-cell text-xs text-navy-800">${acc.assigned_to_name || '-'}</td>
-            <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold border ${acc.status === 'assigned' ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}">${acc.status}</span></td>
+            <td class="td-cell font-bold text-navy-900">${escapeHtml(acc.name)}</td>
+            <td class="td-cell capitalize text-xs text-navy-700/80">${escapeHtml(acc.category)}</td>
+            <td class="td-cell font-mono text-xs text-navy-700/70">${escapeHtml(acc.serial_number || '-')}</td>
+            <td class="td-cell">${acc.linked_asset_id ? `<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold"><i class="fa-solid fa-laptop text-amber-600 mr-1"></i> ${escapeHtml(acc.linked_asset_code)} - ${escapeHtml(acc.linked_asset_name)}</span>` : '<span class="text-navy-700/50 italic text-xs">Standby Gudang</span>'}</td>
+            <td class="td-cell text-xs text-navy-800">${escapeHtml(acc.assigned_to_name || '-')}</td>
+            <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold border ${acc.status === 'assigned' ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}">${escapeHtml(acc.status)}</span></td>
             <td class="td-cell text-right"><button onclick="deleteAccessory(${acc.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1"><i class="fa-solid fa-trash"></i></button></td>
           </tr>
         `).join('');
@@ -3561,7 +3606,7 @@
         onConsumableFilterChange();
 
         // Dropdowns & Dash alerts
-        const opts = state.consumables.map(c => `<option value="${c.id}">[Sisa: ${c.current_stock} ${c.unit}] ${c.name}</option>`).join('');
+        const opts = state.consumables.map(c => `<option value="${c.id}">[Sisa: ${Number(c.current_stock)} ${escapeHtml(c.unit)}] ${escapeHtml(c.name)}</option>`).join('');
         const cOut = document.getElementById('csm-out-item');
         const cIn = document.getElementById('csm-in-item');
         if (cOut) cOut.innerHTML = opts;
@@ -3572,8 +3617,8 @@
           const lowItems = state.consumables.filter(c => c.current_stock <= c.min_stock_alert);
           lowBox.innerHTML = lowItems.length === 0 ? '<p class="text-slate-400 italic text-xs">Semua stok aman.</p>' : lowItems.map(c => `
             <div class="flex items-center justify-between p-2 rounded bg-amber-50 border border-amber-200 text-xs">
-              <span class="font-bold text-slate-900">${c.name}</span>
-              <span class="font-extrabold text-rose-600">${c.current_stock} ${c.unit}</span>
+              <span class="font-bold text-slate-900">${escapeHtml(c.name)}</span>
+              <span class="font-extrabold text-rose-600">${Number(c.current_stock)} ${escapeHtml(c.unit)}</span>
             </div>
           `).join('');
         }
@@ -3627,10 +3672,10 @@
         const isLow = c.current_stock <= c.min_stock_alert;
         return `
           <tr>
-            <td class="td-cell font-bold text-navy-900">${c.name}</td>
-            <td class="td-cell capitalize text-xs text-navy-700/80">${c.category.replace('_', ' ')}</td>
-            <td class="td-cell"><span class="text-base font-extrabold ${isLow ? 'text-rose-600' : 'text-navy-900'}">${c.current_stock}</span> <span class="text-xs text-navy-700/70 font-medium">${c.unit}</span></td>
-            <td class="td-cell text-xs text-navy-700/70 font-mono">${c.min_stock_alert} ${c.unit}</td>
+            <td class="td-cell font-bold text-navy-900">${escapeHtml(c.name)}</td>
+            <td class="td-cell capitalize text-xs text-navy-700/80">${escapeHtml(c.category.replace('_', ' '))}</td>
+            <td class="td-cell"><span class="text-base font-extrabold ${isLow ? 'text-rose-600' : 'text-navy-900'}">${Number(c.current_stock)}</span> <span class="text-xs text-navy-700/70 font-medium">${escapeHtml(c.unit)}</span></td>
+            <td class="td-cell text-xs text-navy-700/70 font-mono">${Number(c.min_stock_alert)} ${escapeHtml(c.unit)}</td>
             <td class="td-cell"><span class="px-2 py-0.5 rounded text-[11px] font-semibold border ${isLow ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}">${isLow ? 'Kritis' : 'Aman'}</span></td>
             <td class="td-cell text-right whitespace-nowrap">
               <button onclick="quickConsumableOut(${c.id})" class="px-2.5 py-1 text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 rounded border border-amber-300 mr-1 transition"><i class="fa-solid fa-arrow-up"></i> Pakai</button>
@@ -3753,13 +3798,13 @@
       const previewRows = assets.slice(0, 10);
       tbody.innerHTML = previewRows.map(a => `
         <tr class="hover:bg-linen-100">
-          <td class="p-2 font-mono font-bold text-navy-900">${a.asset_tag || '<span class="text-navy-700/50 italic">Auto-gen</span>'}</td>
-          <td class="p-2 font-medium text-navy-900">${a.name}</td>
-          <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${a.division === 'IT' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-linen-200 text-navy-900 border border-linen-300'}">${a.division}</span></td>
-          <td class="p-2 capitalize text-navy-800">${a.category}</td>
-          <td class="p-2 font-mono text-[11px] text-navy-700/70">${a.serial_number || '-'}</td>
-          <td class="p-2 text-navy-700">${a.location}</td>
-          <td class="p-2 text-[11px] text-navy-700/70">${[a.specs.processor, a.specs.ram, a.specs.storage].filter(Boolean).join(' • ') || a.specs.notes || '-'}</td>
+          <td class="p-2 font-mono font-bold text-navy-900">${a.asset_tag ? escapeHtml(a.asset_tag) : '<span class="text-navy-700/50 italic">Auto-gen</span>'}</td>
+          <td class="p-2 font-medium text-navy-900">${escapeHtml(a.name)}</td>
+          <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${a.division === 'IT' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-linen-200 text-navy-900 border border-linen-300'}">${escapeHtml(a.division)}</span></td>
+          <td class="p-2 capitalize text-navy-800">${escapeHtml(a.category)}</td>
+          <td class="p-2 font-mono text-[11px] text-navy-700/70">${escapeHtml(a.serial_number || '-')}</td>
+          <td class="p-2 text-navy-700">${escapeHtml(a.location)}</td>
+          <td class="p-2 text-[11px] text-navy-700/70">${escapeHtml([a.specs.processor, a.specs.ram, a.specs.storage].filter(Boolean).join(' • ') || a.specs.notes || '-')}</td>
         </tr>
       `).join('');
     }
@@ -3812,8 +3857,8 @@
         return '<option value="">(Belum ada data barang)</option>';
       }
       return state.consumables.map(c => `
-        <option value="${c.id}" data-stock="${c.current_stock}" data-unit="${c.unit}" ${c.id == selectedId ? 'selected' : ''}>
-          ${c.name} [Stok: ${c.current_stock} ${c.unit}]
+        <option value="${c.id}" data-stock="${Number(c.current_stock)}" data-unit="${escapeHtml(c.unit)}" ${c.id == selectedId ? 'selected' : ''}>
+          ${escapeHtml(c.name)} [Stok: ${Number(c.current_stock)} ${escapeHtml(c.unit)}]
         </option>
       `).join('');
     }
@@ -4208,16 +4253,16 @@
 
       tbody.innerHTML = items.map(t => `
         <tr>
-          <td class="td-cell font-mono font-bold text-xs text-navy-900 whitespace-nowrap">${t.ticket_no}</td>
+          <td class="td-cell font-mono font-bold text-xs text-navy-900 whitespace-nowrap">${escapeHtml(t.ticket_no)}</td>
           <td class="td-cell">
-            <div class="font-bold text-navy-900">${t.title}</div>
-            <div class="text-xs text-navy-700/70 mt-0.5">${t.description || ''}</div>
-            ${t.resolution_note ? `<div class="text-[11px] text-emerald-900 font-medium mt-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">Solusi: ${t.resolution_note}</div>` : ''}
+            <div class="font-bold text-navy-900">${escapeHtml(t.title)}</div>
+            <div class="text-xs text-navy-700/70 mt-0.5">${escapeHtml(t.description || '')}</div>
+            ${t.resolution_note ? `<div class="text-[11px] text-emerald-900 font-medium mt-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">Solusi: ${escapeHtml(t.resolution_note)}</div>` : ''}
           </td>
-          <td class="td-cell text-xs"><div class="font-semibold text-navy-900">${t.category}</div><div class="text-[10px] text-navy-700/70 capitalize">Prioritas: ${t.priority}</div></td>
-          <td class="td-cell text-xs font-semibold text-navy-900">${t.requester_name || '-'}</td>
-          <td class="td-cell">${t.related_asset_id ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 font-mono text-xs px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-link text-[10px] mr-1 text-amber-600"></i>${t.related_asset_code}</span>` : '-'}</td>
-          <td class="td-cell whitespace-nowrap">${statusMap[t.status] || t.status}</td>
+          <td class="td-cell text-xs"><div class="font-semibold text-navy-900">${escapeHtml(t.category)}</div><div class="text-[10px] text-navy-700/70 capitalize">Prioritas: ${escapeHtml(t.priority)}</div></td>
+          <td class="td-cell text-xs font-semibold text-navy-900">${escapeHtml(t.requester_name || '-')}</td>
+          <td class="td-cell">${t.related_asset_id ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 font-mono text-xs px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-link text-[10px] mr-1 text-amber-600"></i>${escapeHtml(t.related_asset_code)}</span>` : '-'}</td>
+          <td class="td-cell whitespace-nowrap">${statusMap[t.status] || escapeHtml(t.status)}</td>
           <td class="td-cell text-right whitespace-nowrap">
             ${t.status !== 'resolved' && t.status !== 'closed' ? `<button onclick="updateTicketStatus(${t.id}, 'resolved')" class="px-2.5 py-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded transition shadow-sm">Selesai</button>` : '<span class="text-xs text-emerald-700 font-bold"><i class="fa-solid fa-check"></i> Selesai</span>'}
             <button onclick="deleteTicket(${t.id})" class="text-xs text-navy-400 hover:text-rose-600 p-1 ml-1 transition" title="Hapus Tiket"><i class="fa-solid fa-trash"></i></button>
