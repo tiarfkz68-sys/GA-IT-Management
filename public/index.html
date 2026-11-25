@@ -146,6 +146,7 @@
       #printable-sticker, #printable-sticker * { visibility: visible; }
       #printable-bast, #printable-bast * { visibility: visible; }
       #printable-batch-bast, #printable-batch-bast * { visibility: visible; }
+      #printable-csm-monthly, #printable-csm-monthly * { visibility: visible; }
       #printable-sticker {
         position: fixed;
         left: 0;
@@ -328,6 +329,11 @@
         <button onclick="nav('audit')" id="nav-audit" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-navy-800">
           <i class="fa-solid fa-shield-halved w-4 text-center"></i>
           <span>Log Aktivitas (Audit)</span>
+        </button>
+
+        <button onclick="nav('import')" id="nav-import" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-navy-800">
+          <i class="fa-solid fa-file-import w-4 text-center text-amber-400"></i>
+          <span>Import Data</span>
         </button>
 
         <div class="pt-2 border-t border-navy-800/80">
@@ -745,6 +751,9 @@
           </div>
 
           <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <button onclick="openConsumableMonthlyReportModal()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition whitespace-nowrap">
+              <i class="fa-solid fa-calendar-days"></i> Laporan Bulanan
+            </button>
             <button onclick="openModal('modal-consumable-in')" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition whitespace-nowrap">
               <i class="fa-solid fa-arrow-down"></i> + Masuk Stok
             </button>
@@ -769,7 +778,10 @@
             <select id="consumable-filter-cat" onchange="onConsumableFilterChange()" aria-label="Filter kategori barang habis pakai" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500 flex-1 sm:flex-none">
               <option value="">Semua Kategori ATK</option>
               <option value="kertas">Kertas</option>
-              <option value="toner">Toner / Tinta</option>
+              <option value="printer_supplies">Tinta / Toner</option>
+              <option value="toner">Toner / Tinta (Legacy)</option>
+              <option value="ribbon">Ribbon / Pita Printer</option>
+              <option value="cables">Kabel / IT Supplies</option>
               <option value="it_supplies">IT Supplies / LAN</option>
               <option value="pantry">Pantry / Kebersihan</option>
               <option value="atk">ATK Umum</option>
@@ -896,6 +908,93 @@
               </thead>
               <tbody id="audit-table-body"></tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 7: PUSAT IMPORT DATA MASTER (EXCEL / CSV) -->
+      <!-- ===================================================== -->
+      <section id="view-import" class="hidden space-y-5 w-full max-w-full min-w-0">
+        <div class="bg-linen-50 p-5 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-navy-900 flex items-center gap-2">
+              <i class="fa-solid fa-file-import text-amber-600"></i> Pusat Import Data Master (Excel / CSV)
+            </h2>
+            <p class="text-xs text-navy-700/80 mt-0.5">Unggah spreadsheet (.xlsx, .xls, .csv) untuk mengisi data Kategori Barang, Master Lokasi, Master PIC/Karyawan, dan Master ATK secara massal.</p>
+          </div>
+          <button onclick="openModal('modal-import-assets')" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition whitespace-nowrap">
+            <i class="fa-solid fa-laptop"></i> Import Aset Utama
+          </button>
+        </div>
+
+        <!-- Pilihan Jenis Data Import -->
+        <div class="flex items-center gap-2 border-b border-linen-200 pb-3 overflow-x-auto whitespace-nowrap scrollbar-none w-full max-w-full">
+          <button onclick="switchMasterImportType('categories')" id="imptab-categories" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition">
+            <i class="fa-solid fa-tags mr-1.5"></i> 1. Kategori Barang
+          </button>
+          <button onclick="switchMasterImportType('locations')" id="imptab-locations" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+            <i class="fa-solid fa-map-location-dot mr-1.5"></i> 2. Master Lokasi
+          </button>
+          <button onclick="switchMasterImportType('employees')" id="imptab-employees" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+            <i class="fa-solid fa-id-card mr-1.5"></i> 3. Master PIC / Karyawan
+          </button>
+          <button onclick="switchMasterImportType('consumables')" id="imptab-consumables" class="shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+            <i class="fa-solid fa-box-archive mr-1.5"></i> 4. Master ATK / Tinta / Ribbon
+          </button>
+        </div>
+
+        <!-- Panel Import Aktif -->
+        <div class="bg-linen-50 p-6 rounded-xl border border-linen-200 shadow-sm space-y-5">
+          <!-- Panduan & Download Template -->
+          <div class="bg-white p-4 rounded-xl border border-linen-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <h3 id="master-import-guide-title" class="text-sm font-bold text-navy-900">Import Data Kategori Barang</h3>
+              <p id="master-import-guide-cols" class="text-xs text-navy-700/80 font-mono">Kolom wajib: Domain (IT/GA), Kode, Nama Kategori, Prefix Tag</p>
+            </div>
+            <button type="button" onclick="downloadMasterImportTemplate()" class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-download"></i> Download Template Excel (.xlsx)
+            </button>
+          </div>
+
+          <!-- Upload Area -->
+          <div class="border-2 border-dashed border-linen-300 rounded-xl p-6 text-center bg-white hover:border-amber-500 transition">
+            <input type="file" id="master-import-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleMasterImportFile(event)">
+            <i class="fa-solid fa-cloud-arrow-up text-3xl text-amber-500 mb-2"></i>
+            <p class="text-xs font-bold text-navy-900 mb-1">Pilih file Excel (.xlsx / .xls) atau CSV untuk diimpor</p>
+            <p class="text-[11px] text-navy-700/70 mb-3">Pastikan nama kolom sesuai dengan template agar data terbaca otomatis.</p>
+            <button type="button" onclick="document.getElementById('master-import-file-input').click()" class="px-4 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">
+              <i class="fa-solid fa-folder-open mr-1.5"></i> Pilih File Spreadsheet
+            </button>
+            <div class="mt-3 flex items-center justify-center gap-2">
+              <input type="checkbox" id="master-import-overwrite" class="rounded text-amber-500 focus:ring-amber-500">
+              <label for="master-import-overwrite" class="text-xs font-medium text-navy-800 cursor-pointer">Timpa / perbarui data jika sudah ada (Overwrite)</label>
+            </div>
+          </div>
+
+          <!-- Result Banner -->
+          <div id="master-import-result" class="hidden p-3.5 rounded-xl border text-xs font-medium"></div>
+
+          <!-- Preview Table -->
+          <div id="master-import-preview-wrap" class="hidden space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-navy-900">Pratinjau Data:</span>
+                <span id="master-import-count-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">0 baris</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="resetMasterImportPreview()" class="px-3 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Bersihkan</button>
+                <button type="button" id="btn-submit-master-import" onclick="submitMasterImport()" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                  <i class="fa-solid fa-check"></i> Proses Import Data
+                </button>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl border border-linen-200 overflow-x-auto max-h-80">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead id="master-import-preview-head" class="bg-linen-100 text-navy-900 font-bold sticky top-0"></thead>
+                <tbody id="master-import-preview-body" class="divide-y divide-linen-200"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -2023,6 +2122,132 @@
           </div>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: Laporan Bulanan ATK / Tinta / Ribbon -->
+  <div id="modal-consumables-monthly-report" role="dialog" aria-modal="true" aria-labelledby="modal-title-csm-monthly" class="modal-overlay hidden">
+    <div class="bg-linen-50 rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-linen-200 space-y-4 max-h-[92vh] flex flex-col">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-linen-200 gap-3 flex-shrink-0">
+        <div>
+          <h3 id="modal-title-csm-monthly" class="font-bold text-base text-navy-900 flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-emerald-700" aria-hidden="true"></i> Laporan Bulanan ATK, Tinta, Toner &amp; Ribbon
+          </h3>
+          <p class="text-xs text-navy-700/80 mt-0.5">Rekapitulasi stok masuk, pemakaian keluar, dan sisa stok akhir per bulan.</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="exportConsumableMonthlyExcel()" class="px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-excel"></i> Export Excel
+          </button>
+          <a id="btn-csm-monthly-csv" href="/api/reports/export?type=consumables-monthly" download class="px-3 py-1.5 text-xs font-bold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-csv"></i> Export CSV
+          </a>
+          <button onclick="window.print()" class="px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-print"></i> Cetak (A4)
+          </button>
+          <button onclick="closeModal('modal-consumables-monthly-report')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup laporan bulanan ATK"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="bg-white p-3 rounded-xl border border-linen-200 flex flex-wrap items-center gap-3 flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <label for="csm-report-month" class="text-xs font-bold text-navy-800">Periode Bulan:</label>
+          <input type="month" id="csm-report-month" onchange="loadConsumableMonthlyReport()" class="text-xs bg-linen-50 border border-linen-300 rounded-lg px-2.5 py-1.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="csm-report-category" class="text-xs font-bold text-navy-800">Kategori:</label>
+          <select id="csm-report-category" onchange="loadConsumableMonthlyReport()" class="text-xs bg-linen-50 border border-linen-300 rounded-lg px-2.5 py-1.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500">
+            <option value="">Semua Kategori (ATK, Tinta, Ribbon, Kertas)</option>
+            <option value="printer_supplies">Tinta / Toner</option>
+            <option value="toner">Toner / Tinta (Legacy)</option>
+            <option value="ribbon">Ribbon / Pita Printer</option>
+            <option value="kertas">Kertas</option>
+            <option value="atk">ATK Umum</option>
+            <option value="cables">Kabel / IT Supplies</option>
+            <option value="it_supplies">IT Supplies / LAN</option>
+            <option value="pantry">Pantry</option>
+          </select>
+        </div>
+        <div class="ml-auto inline-flex rounded-lg border border-linen-300 p-0.5 bg-linen-100 text-[11px]">
+          <button id="btn-csm-rep-summary" onclick="switchConsumableReportTab('summary')" class="px-3 py-1 rounded-md font-bold transition bg-amber-500 text-navy-950 shadow-sm">
+            Rekap Per Barang
+          </button>
+          <button id="btn-csm-rep-tx" onclick="switchConsumableReportTab('tx')" class="px-3 py-1 rounded-md font-bold text-navy-700 hover:text-navy-950 transition">
+            Rincian Transaksi Keluar
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Area -->
+      <div id="printable-csm-monthly" class="overflow-y-auto flex-1 space-y-4 bg-white p-5 rounded-xl border border-linen-200">
+        <div class="flex items-center justify-between border-b-2 border-navy-900 pb-2">
+          <div>
+            <h4 class="text-sm font-black uppercase text-navy-900" id="csm-rep-company">PT NUSA PERSADA UTAMA</h4>
+            <p class="text-xs font-bold text-navy-700">LAPORAN BULANAN PEMAKAIAN &amp; STOK ATK / TINTA / RIBBON</p>
+          </div>
+          <div class="text-right text-xs font-mono text-navy-800">
+            <div>Periode: <strong id="csm-rep-period-label">-</strong></div>
+            <div class="text-[10px] text-navy-600" id="csm-rep-cat-label">Semua Kategori</div>
+          </div>
+        </div>
+
+        <!-- KPI Strip -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="p-3 rounded-lg bg-linen-50 border border-linen-200">
+            <div class="text-[11px] font-semibold text-navy-700">Total Jenis Barang</div>
+            <div id="csm-rep-kpi-items" class="text-xl font-black text-navy-900 font-mono">0</div>
+          </div>
+          <div class="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+            <div class="text-[11px] font-semibold text-emerald-800">Total Masuk (Restock)</div>
+            <div id="csm-rep-kpi-in" class="text-xl font-black text-emerald-900 font-mono">0</div>
+          </div>
+          <div class="p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <div class="text-[11px] font-semibold text-amber-900">Total Keluar (Pemakaian)</div>
+            <div id="csm-rep-kpi-out" class="text-xl font-black text-amber-950 font-mono">0</div>
+          </div>
+          <div class="p-3 rounded-lg bg-rose-50 border border-rose-200">
+            <div class="text-[11px] font-semibold text-rose-800">Item Stok Kritis</div>
+            <div id="csm-rep-kpi-low" class="text-xl font-black text-rose-900 font-mono">0</div>
+          </div>
+        </div>
+
+        <!-- Tab 1: Rekap Per Barang -->
+        <div id="csm-rep-view-summary" class="overflow-x-auto border border-linen-200 rounded-lg">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-linen-100 text-navy-900 font-bold">
+              <tr>
+                <th class="p-2.5 border-b">No</th>
+                <th class="p-2.5 border-b">Nama Barang</th>
+                <th class="p-2.5 border-b">Kategori</th>
+                <th class="p-2.5 border-b text-center">Satuan</th>
+                <th class="p-2.5 border-b text-right">Masuk Bulan Ini</th>
+                <th class="p-2.5 border-b text-right">Keluar Bulan Ini</th>
+                <th class="p-2.5 border-b text-right">Stok Akhir</th>
+                <th class="p-2.5 border-b text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-csm-report-summary" class="divide-y divide-linen-200"></tbody>
+          </table>
+        </div>
+
+        <!-- Tab 2: Rincian Transaksi Keluar -->
+        <div id="csm-rep-view-tx" class="hidden overflow-x-auto border border-linen-200 rounded-lg">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-linen-100 text-navy-900 font-bold">
+              <tr>
+                <th class="p-2.5 border-b">Tanggal</th>
+                <th class="p-2.5 border-b">Nama Barang</th>
+                <th class="p-2.5 border-b">Kategori</th>
+                <th class="p-2.5 border-b text-right">Jumlah</th>
+                <th class="p-2.5 border-b">Penerima / Bagian</th>
+                <th class="p-2.5 border-b">Keterangan / Keperluan</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-csm-report-tx" class="divide-y divide-linen-200"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3808,7 +4033,7 @@
         activeNav.classList.remove('text-slate-400');
       }
 
-      ['view-dashboard', 'view-assets', 'view-add-asset', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-settings'].forEach(v => {
+      ['view-dashboard', 'view-assets', 'view-add-asset', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-import', 'view-settings'].forEach(v => {
         const el = document.getElementById(v);
         if (el) el.classList.add('hidden');
       });
@@ -3820,6 +4045,7 @@
         consumables: 'Consumables & Stok ATK',
         logbook: 'Logbook Pekerjaan & Tiket',
         audit: 'Audit Trail & Log Perubahan',
+        import: 'Pusat Import Data Master',
         settings: 'Pengaturan Sistem'
       };
       document.getElementById('top-title').innerText = titles[tab] || 'Overview';
@@ -3837,6 +4063,7 @@
       if (tab === 'consumables') loadConsumables();
       if (tab === 'logbook') loadTickets();
       if (tab === 'audit') loadActivityLogs();
+      if (tab === 'import') switchMasterImportType(masterImportState.type || 'categories');
       if (tab === 'settings') switchSettingsTab('logo');
     }
 
@@ -4738,8 +4965,11 @@
         <td class="p-2">
           <select aria-label="Kategori ATK baris ${rowIdx}" class="csm-cat w-full text-xs bg-white border border-linen-300 rounded p-1.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
             <option value="atk">ATK</option>
-            <option value="printer_supplies">Tinta/Toner</option>
-            <option value="cables">Kabel</option>
+            <option value="printer_supplies">Tinta / Toner</option>
+            <option value="ribbon">Ribbon / Pita Printer</option>
+            <option value="kertas">Kertas</option>
+            <option value="cables">Kabel / IT Supplies</option>
+            <option value="pantry">Pantry</option>
             <option value="other">Lainnya</option>
           </select>
         </td>
@@ -5203,6 +5433,395 @@
       } catch (err) {
         alert(err.message);
       }
+    }
+
+    // ============================================================
+    // PUSAT IMPORT DATA MASTER (KATEGORI, LOKASI, PIC, ATK)
+    // ============================================================
+    const masterImportState = {
+      type: 'categories',
+      rows: []
+    };
+
+    const MASTER_IMPORT_CONFIG = {
+      categories: {
+        title: 'Import Data Kategori Barang',
+        colsText: 'Kolom wajib: Domain (IT/GA), Kode, Nama Kategori, Prefix Tag (Opsional: Icon)',
+        endpoint: '/api/categories/batch-import',
+        filename: 'Template_Import_Kategori_Barang.xlsx',
+        sheetName: 'Kategori_Barang',
+        headers: ['Domain', 'Kode', 'Nama Kategori', 'Prefix Tag', 'Icon'],
+        sample: [
+          { 'Domain': 'IT', 'Kode': 'printer', 'Nama Kategori': 'Printer & Scanner', 'Prefix Tag': 'IT-PRT', 'Icon': 'fa-print' },
+          { 'Domain': 'GA', 'Kode': 'furniture', 'Nama Kategori': 'Meja & Kursi Kerja', 'Prefix Tag': 'GA-FRN', 'Icon': 'fa-chair' }
+        ],
+        mapRow: (r) => {
+          const domain = String(r['Domain'] || r['domain'] || 'IT').toUpperCase().trim();
+          const code = String(r['Kode'] || r['Kode Unik'] || r['code'] || '').trim();
+          const name = String(r['Nama Kategori'] || r['Nama'] || r['name'] || '').trim();
+          const tag_prefix = String(r['Prefix Tag'] || r['Prefix'] || r['tag_prefix'] || '').toUpperCase().trim();
+          const icon = String(r['Icon'] || r['icon'] || 'fa-box').trim();
+          const valid = Boolean(name && code && tag_prefix && ['IT', 'GA'].includes(domain));
+          return { domain, code, name, tag_prefix, icon, _valid: valid, _err: valid ? '' : 'Domain (IT/GA), Kode, Nama & Prefix wajib' };
+        },
+        previewCols: ['domain', 'code', 'name', 'tag_prefix']
+      },
+      locations: {
+        title: 'Import Data Master Lokasi Kantor',
+        colsText: 'Kolom wajib: Nama Lokasi (Opsional: Gedung / Lantai, Keterangan)',
+        endpoint: '/api/locations/batch-import',
+        filename: 'Template_Import_Master_Lokasi.xlsx',
+        sheetName: 'Master_Lokasi',
+        headers: ['Nama Lokasi', 'Gedung / Lantai', 'Keterangan'],
+        sample: [
+          { 'Nama Lokasi': 'Cabang Surabaya - Ruang Operasional', 'Gedung / Lantai': 'Ruko Darmo Lt 1', 'Keterangan': 'Area CS dan Kasir' },
+          { 'Nama Lokasi': 'Head Office - Ruang Meeting Merapi', 'Gedung / Lantai': 'Gedung Utama Lt 2', 'Keterangan': 'Kapasitas 12 orang' }
+        ],
+        mapRow: (r) => {
+          const name = String(r['Nama Lokasi'] || r['Lokasi'] || r['name'] || '').trim();
+          const building_floor = String(r['Gedung / Lantai'] || r['Gedung'] || r['building_floor'] || '').trim();
+          const description = String(r['Keterangan'] || r['Deskripsi'] || r['description'] || '').trim();
+          const valid = Boolean(name);
+          return { name, building_floor, description, _valid: valid, _err: valid ? '' : 'Nama Lokasi wajib diisi' };
+        },
+        previewCols: ['name', 'building_floor', 'description']
+      },
+      employees: {
+        title: 'Import Data Master PIC / Karyawan',
+        colsText: 'Kolom wajib: Nama Lengkap, Bagian / Departemen (Opsional: NIK, Jabatan, No. HP)',
+        endpoint: '/api/employees/batch-import',
+        filename: 'Template_Import_Master_PIC.xlsx',
+        sheetName: 'Master_PIC',
+        headers: ['NIK', 'Nama Lengkap', 'Bagian / Departemen', 'Jabatan', 'No. HP'],
+        sample: [
+          { 'NIK': 'EMP-010', 'Nama Lengkap': 'Andi Wijaya', 'Bagian / Departemen': 'Delivery Order', 'Jabatan': 'Driver Operasional', 'No. HP': '081299001122' },
+          { 'NIK': 'EMP-011', 'Nama Lengkap': 'Dewi Lestari', 'Bagian / Departemen': 'Support Indent', 'Jabatan': 'Staff Admin', 'No. HP': '081344556677' }
+        ],
+        mapRow: (r) => {
+          const nik = String(r['NIK'] || r['nik'] || '').trim();
+          const name = String(r['Nama Lengkap'] || r['Nama'] || r['name'] || '').trim();
+          const department = String(r['Bagian / Departemen'] || r['Bagian'] || r['Departemen'] || r['department'] || '').trim();
+          const position = String(r['Jabatan'] || r['position'] || '').trim();
+          const phone_number = String(r['No. HP'] || r['Telepon'] || r['phone_number'] || '').trim();
+          const valid = Boolean(name && department);
+          return { nik, name, department, position, phone_number, _valid: valid, _err: valid ? '' : 'Nama & Bagian wajib diisi' };
+        },
+        previewCols: ['nik', 'name', 'department', 'position', 'phone_number']
+      },
+      consumables: {
+        title: 'Import Data Master ATK, Tinta & Ribbon',
+        colsText: 'Kolom wajib: Nama Barang (Opsional: Kategori [atk/printer_supplies/ribbon/kertas], Satuan, Stok Awal, Min Alert)',
+        endpoint: '/api/consumables/batch-import',
+        filename: 'Template_Import_Master_ATK.xlsx',
+        sheetName: 'Master_ATK',
+        headers: ['Nama Barang', 'Kategori', 'Satuan', 'Stok Awal', 'Min Alert'],
+        sample: [
+          { 'Nama Barang': 'Ribbon Epson LX-310 Original', 'Kategori': 'ribbon', 'Satuan': 'pcs', 'Stok Awal': 15, 'Min Alert': 5 },
+          { 'Nama Barang': 'Tinta Epson 003 Black 65ml', 'Kategori': 'printer_supplies', 'Satuan': 'botol', 'Stok Awal': 12, 'Min Alert': 4 },
+          { 'Nama Barang': 'Kertas HVS A4 80gsm PaperOne', 'Kategori': 'kertas', 'Satuan': 'rim', 'Stok Awal': 30, 'Min Alert': 10 }
+        ],
+        mapRow: (r) => {
+          const name = String(r['Nama Barang'] || r['Nama'] || r['name'] || '').trim();
+          const category = String(r['Kategori'] || r['category'] || 'atk').toLowerCase().trim();
+          const unit = String(r['Satuan'] || r['unit'] || 'pcs').trim();
+          const current_stock = parseInt(r['Stok Awal'] || r['Stok'] || r['current_stock'] || 0, 10) || 0;
+          const min_stock_alert = parseInt(r['Min Alert'] || r['min_stock_alert'] || 5, 10) || 5;
+          const valid = Boolean(name);
+          return { name, category, unit, current_stock, min_stock_alert, _valid: valid, _err: valid ? '' : 'Nama Barang wajib diisi' };
+        },
+        previewCols: ['name', 'category', 'unit', 'current_stock', 'min_stock_alert']
+      }
+    };
+
+    function switchMasterImportType(type) {
+      masterImportState.type = type;
+      ['categories', 'locations', 'employees', 'consumables'].forEach(t => {
+        const btn = document.getElementById(`imptab-${t}`);
+        if (btn) {
+          btn.className = t === type
+            ? 'shrink-0 px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition'
+            : 'shrink-0 px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition';
+        }
+      });
+
+      const cfg = MASTER_IMPORT_CONFIG[type];
+      if (!cfg) return;
+      document.getElementById('master-import-guide-title').innerText = cfg.title;
+      document.getElementById('master-import-guide-cols').innerText = cfg.colsText;
+      resetMasterImportPreview();
+    }
+
+    function downloadMasterImportTemplate() {
+      const cfg = MASTER_IMPORT_CONFIG[masterImportState.type];
+      if (!cfg || typeof XLSX === 'undefined') {
+        showToast('Library Excel belum siap, coba muat ulang halaman.', false);
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(cfg.sample);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, cfg.sheetName);
+      XLSX.writeFile(wb, cfg.filename);
+      showToast(`Template ${cfg.filename} berhasil diunduh!`);
+    }
+
+    function handleMasterImportFile(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat.', false);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rawRows = XLSX.utils.sheet_to_json(sheet);
+          const cfg = MASTER_IMPORT_CONFIG[masterImportState.type];
+
+          if (!rawRows || rawRows.length === 0) {
+            showToast('File kosong atau tidak memiliki baris data.', false);
+            return;
+          }
+
+          masterImportState.rows = rawRows.map(cfg.mapRow);
+          renderMasterImportPreview();
+        } catch (err) {
+          alert('Gagal membaca file Excel/CSV: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderMasterImportPreview() {
+      const cfg = MASTER_IMPORT_CONFIG[masterImportState.type];
+      const rows = masterImportState.rows;
+      const wrap = document.getElementById('master-import-preview-wrap');
+      const head = document.getElementById('master-import-preview-head');
+      const body = document.getElementById('master-import-preview-body');
+      const badge = document.getElementById('master-import-count-badge');
+      const resultBox = document.getElementById('master-import-result');
+
+      if (resultBox) resultBox.classList.add('hidden');
+      if (!rows || rows.length === 0) {
+        wrap.classList.add('hidden');
+        return;
+      }
+
+      const validCount = rows.filter(r => r._valid).length;
+      badge.innerText = `${rows.length} baris (${validCount} valid)`;
+
+      head.innerHTML = `<tr><th class="p-2.5 border-b w-10 text-center">#</th>${cfg.headers.map(h => `<th class="p-2.5 border-b">${escapeHtml(h)}</th>`).join('')}<th class="p-2.5 border-b">Status</th></tr>`;
+      body.innerHTML = rows.slice(0, 100).map((r, i) => `
+        <tr class="${r._valid ? 'hover:bg-linen-50' : 'bg-rose-50'}">
+          <td class="p-2 text-center font-mono text-navy-600">${i + 1}</td>
+          ${cfg.previewCols.map(k => `<td class="p-2 font-medium text-navy-900">${escapeHtml(r[k] !== undefined && r[k] !== '' ? r[k] : '-')}</td>`).join('')}
+          <td class="p-2">
+            ${r._valid
+              ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Siap Import</span>'
+              : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">${escapeHtml(r._err)}</span>`
+            }
+          </td>
+        </tr>
+      `).join('');
+
+      wrap.classList.remove('hidden');
+    }
+
+    function resetMasterImportPreview() {
+      masterImportState.rows = [];
+      const input = document.getElementById('master-import-file-input');
+      if (input) input.value = '';
+      const wrap = document.getElementById('master-import-preview-wrap');
+      if (wrap) wrap.classList.add('hidden');
+      const resBox = document.getElementById('master-import-result');
+      if (resBox) resBox.classList.add('hidden');
+    }
+
+    async function submitMasterImport() {
+      const cfg = MASTER_IMPORT_CONFIG[masterImportState.type];
+      const validRows = masterImportState.rows.filter(r => r._valid);
+      if (validRows.length === 0) {
+        showToast('Tidak ada baris data yang valid untuk diimpor.', false);
+        return;
+      }
+
+      const overwriteExisting = Boolean(document.getElementById('master-import-overwrite')?.checked);
+      const btn = document.getElementById('btn-submit-master-import');
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch(cfg.endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: validRows,
+            overwriteExisting,
+            userName: state.currentUser?.name || 'Admin'
+          })
+        });
+
+        const data = await res.json();
+        const resBox = document.getElementById('master-import-result');
+        if (!res.ok) {
+          resBox.className = 'p-3.5 rounded-xl border text-xs font-medium bg-rose-50 border-rose-200 text-rose-800';
+          resBox.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1.5"></i> Gagal: ${escapeHtml(data.error || 'Terjadi kesalahan')}`;
+          resBox.classList.remove('hidden');
+          return;
+        }
+
+        resBox.className = 'p-3.5 rounded-xl border text-xs font-medium bg-emerald-50 border-emerald-200 text-emerald-900';
+        resBox.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i> <strong>${escapeHtml(data.message)}</strong>`;
+        resBox.classList.remove('hidden');
+        showToast(data.message);
+
+        // Refresh related master caches
+        await Promise.all([loadCategories(), loadLocations(), loadEmployees(), loadConsumables()]);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ============================================================
+    // LAPORAN BULANAN ATK / TINTA / RIBBON
+    // ============================================================
+    let currentConsumableReportData = null;
+
+    function openConsumableMonthlyReportModal() {
+      const monthInput = document.getElementById('csm-report-month');
+      if (monthInput && !monthInput.value) {
+        monthInput.value = new Date().toISOString().slice(0, 7);
+      }
+      openModal('modal-consumables-monthly-report');
+      loadConsumableMonthlyReport();
+    }
+
+    function switchConsumableReportTab(tab) {
+      const btnSum = document.getElementById('btn-csm-rep-summary');
+      const btnTx = document.getElementById('btn-csm-rep-tx');
+      const viewSum = document.getElementById('csm-rep-view-summary');
+      const viewTx = document.getElementById('csm-rep-view-tx');
+
+      if (tab === 'summary') {
+        btnSum.className = 'px-3 py-1 rounded-md font-bold transition bg-amber-500 text-navy-950 shadow-sm';
+        btnTx.className = 'px-3 py-1 rounded-md font-bold text-navy-700 hover:text-navy-950 transition';
+        viewSum.classList.remove('hidden');
+        viewTx.classList.add('hidden');
+      } else {
+        btnTx.className = 'px-3 py-1 rounded-md font-bold transition bg-amber-500 text-navy-950 shadow-sm';
+        btnSum.className = 'px-3 py-1 rounded-md font-bold text-navy-700 hover:text-navy-950 transition';
+        viewTx.classList.remove('hidden');
+        viewSum.classList.add('hidden');
+      }
+    }
+
+    async function loadConsumableMonthlyReport() {
+      const month = document.getElementById('csm-report-month')?.value || new Date().toISOString().slice(0, 7);
+      const category = document.getElementById('csm-report-category')?.value || '';
+
+      const csvBtn = document.getElementById('btn-csm-monthly-csv');
+      if (csvBtn) {
+        csvBtn.href = `/api/reports/export?type=consumables-monthly&month=${encodeURIComponent(month)}${category ? `&category=${encodeURIComponent(category)}` : ''}`;
+      }
+
+      document.getElementById('csm-rep-company').innerText = state.settings?.general?.company_name || 'PT NUSA PERSADA UTAMA';
+      document.getElementById('csm-rep-period-label').innerText = month;
+      const catSel = document.getElementById('csm-report-category');
+      document.getElementById('csm-rep-cat-label').innerText = catSel?.selectedOptions?.[0]?.text || 'Semua Kategori';
+
+      try {
+        const res = await fetch(`/api/reports/consumables-monthly?month=${encodeURIComponent(month)}${category ? `&category=${encodeURIComponent(category)}` : ''}`);
+        const data = await res.json();
+        currentConsumableReportData = data;
+
+        document.getElementById('csm-rep-kpi-items').innerText = data.summary?.total_items ?? 0;
+        document.getElementById('csm-rep-kpi-in').innerText = data.summary?.total_in ?? 0;
+        document.getElementById('csm-rep-kpi-out').innerText = data.summary?.total_out ?? 0;
+        document.getElementById('csm-rep-kpi-low').innerText = data.summary?.low_stock_count ?? 0;
+
+        const tbodySum = document.getElementById('tbody-csm-report-summary');
+        if (!data.items || data.items.length === 0) {
+          tbodySum.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-navy-700/60">Tidak ada item ATK/consumables untuk filter ini.</td></tr>';
+        } else {
+          tbodySum.innerHTML = data.items.map((item, idx) => `
+            <tr class="hover:bg-linen-50">
+              <td class="p-2.5 font-mono text-navy-600">${idx + 1}</td>
+              <td class="p-2.5 font-bold text-navy-900">${escapeHtml(item.name)}</td>
+              <td class="p-2.5 uppercase text-[11px] font-semibold text-navy-700">${escapeHtml(item.category)}</td>
+              <td class="p-2.5 text-center">${escapeHtml(item.unit)}</td>
+              <td class="p-2.5 text-right font-mono font-bold text-emerald-700">+${item.total_in_month}</td>
+              <td class="p-2.5 text-right font-mono font-bold text-amber-700">-${item.total_out_month}</td>
+              <td class="p-2.5 text-right font-mono font-black text-navy-900">${item.current_stock}</td>
+              <td class="p-2.5 text-center">
+                ${item.is_low_stock
+                  ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">Kritis</span>'
+                  : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Aman</span>'
+                }
+              </td>
+            </tr>
+          `).join('');
+        }
+
+        const tbodyTx = document.getElementById('tbody-csm-report-tx');
+        if (!data.transactions || data.transactions.length === 0) {
+          tbodyTx.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-navy-700/60">Belum ada transaksi pengeluaran pada periode bulan ini.</td></tr>';
+        } else {
+          tbodyTx.innerHTML = data.transactions.map(tx => `
+            <tr class="hover:bg-linen-50">
+              <td class="p-2.5 font-mono text-[11px] text-navy-700 whitespace-nowrap">${new Date(tx.checkout_date).toLocaleString('id-ID')}</td>
+              <td class="p-2.5 font-bold text-navy-900">${escapeHtml(tx.item_name)}</td>
+              <td class="p-2.5 uppercase text-[11px] text-navy-700">${escapeHtml(tx.category)}</td>
+              <td class="p-2.5 text-right font-mono font-bold text-amber-800">${tx.quantity} ${escapeHtml(tx.unit)}</td>
+              <td class="p-2.5 font-semibold text-navy-900">${escapeHtml(tx.recipient_name)}</td>
+              <td class="p-2.5 text-navy-700">${escapeHtml(tx.notes || '-')}</td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        console.error('Failed to load monthly consumables report:', err);
+        showToast('Gagal memuat laporan bulanan ATK', false);
+      }
+    }
+
+    function exportConsumableMonthlyExcel() {
+      if (!currentConsumableReportData || typeof XLSX === 'undefined') {
+        showToast('Data laporan belum siap atau library Excel belum termuat.', false);
+        return;
+      }
+      const d = currentConsumableReportData;
+      const summaryRows = (d.items || []).map((r, i) => ({
+        'No': i + 1,
+        'Nama Barang': r.name,
+        'Kategori': r.category,
+        'Satuan': r.unit,
+        'Masuk Bulan Ini': r.total_in_month,
+        'Keluar Bulan Ini': r.total_out_month,
+        'Stok Akhir': r.current_stock,
+        'Batas Minimum': r.min_stock_alert,
+        'Status': r.is_low_stock ? 'KRITIS' : 'AMAN'
+      }));
+
+      const txRows = (d.transactions || []).map(tx => ({
+        'Tanggal': new Date(tx.checkout_date).toLocaleString('id-ID'),
+        'Nama Barang': tx.item_name,
+        'Kategori': tx.category,
+        'Jumlah': tx.quantity,
+        'Satuan': tx.unit,
+        'Penerima': tx.recipient_name,
+        'Keterangan': tx.notes || '-'
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws1 = XLSX.utils.json_to_sheet(summaryRows.length ? summaryRows : [{ Info: 'Tidak ada data' }]);
+      const ws2 = XLSX.utils.json_to_sheet(txRows.length ? txRows : [{ Info: 'Tidak ada transaksi keluar bulan ini' }]);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Rekap_Bulanan_ATK');
+      XLSX.utils.book_append_sheet(wb, ws2, 'Rincian_Pemakaian');
+      XLSX.writeFile(wb, `Laporan_Bulanan_ATK_${d.month}.xlsx`);
+      showToast(`Laporan Excel ${d.month} berhasil diunduh!`);
     }
     // Global accessibility observer to ensure dynamically generated elements (e.g. QRCode <img>) always satisfy WCAG 2.2 AA SC 1.1.1
     if (typeof MutationObserver !== 'undefined') {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../db.js';
+import { pool, query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
@@ -92,6 +92,77 @@ router.post('/', authenticate, requireRole('admin', 'ga', 'it', 'hrd'), async (r
       return sendError(res, 409, `NIK "${nik}" sudah terdaftar pada karyawan lain.`, 'CONFLICT');
     }
     sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
+  }
+});
+
+// 2b. Batch Import employees / PIC
+router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it', 'hrd'), async (req, res) => {
+  const { items = [], overwriteExisting = false } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return sendError(res, 400, 'Data PIC / karyawan untuk diimpor tidak boleh kosong.', 'VALIDATION_ERROR');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const imported = [];
+    const updated = [];
+    const skipped = [];
+
+    for (const item of items) {
+      const nik = item.nik ? String(item.nik).trim() : null;
+      const name = String(item.name || '').trim();
+      const department = String(item.department || '').trim();
+      const position = item.position ? String(item.position).trim() : null;
+      const phone_number = item.phone_number ? String(item.phone_number).trim() : null;
+
+      if (!name || !department) {
+        skipped.push({ nik: nik || '-', name: name || '-', reason: 'Nama atau Bagian/Departemen wajib diisi' });
+        continue;
+      }
+
+      let exist = { rows: [] };
+      if (nik) {
+        exist = await client.query(`SELECT id FROM employees WHERE LOWER(nik) = LOWER($1)`, [nik]);
+      } else {
+        exist = await client.query(`SELECT id FROM employees WHERE LOWER(name) = LOWER($1) AND LOWER(department) = LOWER($2)`, [name, department]);
+      }
+
+      if (exist.rows.length > 0) {
+        if (!overwriteExisting) {
+          skipped.push({ nik: nik || '-', name, reason: 'Karyawan/NIK sudah terdaftar' });
+          continue;
+        }
+        await client.query(
+          `UPDATE employees SET nik = COALESCE($1, nik), name = $2, department = $3, position = $4, phone_number = $5, is_active = TRUE WHERE id = $6`,
+          [nik, name, department, position, phone_number, exist.rows[0].id]
+        );
+        updated.push(name);
+      } else {
+        const ins = await client.query(
+          `INSERT INTO employees (nik, name, department, position, phone_number) VALUES ($1, $2, $3, $4, $5) RETURNING id, nik, name`,
+          [nik, name, department, position, phone_number]
+        );
+        imported.push(ins.rows[0]);
+      }
+    }
+
+    await client.query('COMMIT');
+    invalidateEmployeesCache();
+    await logActivity(req.user?.name || 'Admin', 'IMPORT_EMPLOYEES', 'PIC', null, `Import ${imported.length} PIC baru, update ${updated.length}, lewati ${skipped.length}`);
+
+    res.json({
+      message: `Impor PIC selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
+      importedCount: imported.length,
+      updatedCount: updated.length,
+      skippedCount: skipped.length,
+      skipped
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
+  } finally {
+    client.release();
   }
 });
 

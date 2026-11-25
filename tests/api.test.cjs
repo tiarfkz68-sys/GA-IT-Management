@@ -191,6 +191,60 @@ async function runTests() {
   await request('DELETE', `/api/employees/${testEmpId}`, null, authToken);
   await request('DELETE', `/api/locations/${testLocId}`, null, authToken);
 
+  // 13. Batch Import Categories, Locations, Employees & Consumables
+  const ts = Date.now().toString().slice(-5);
+  const impCat = await request('POST', '/api/categories/batch-import', {
+    items: [{ domain: 'IT', code: `imp_cat_${ts}`, name: `Imported Cat ${ts}`, tag_prefix: `IT-IC${ts.slice(-2)}` }],
+    overwriteExisting: false
+  }, authToken);
+  assert(impCat.status === 200, `POST /api/categories/batch-import status 200`);
+  assert(impCat.data.importedCount === 1, `Imported 1 category`);
+
+  const impLoc = await request('POST', '/api/locations/batch-import', {
+    items: [{ name: `Imported Loc ${ts}`, building_floor: 'Lt 9', description: 'CI Test' }],
+    overwriteExisting: false
+  }, authToken);
+  assert(impLoc.status === 200, `POST /api/locations/batch-import status 200`);
+  assert(impLoc.data.importedCount === 1, `Imported 1 location`);
+
+  const impEmp = await request('POST', '/api/employees/batch-import', {
+    items: [{ nik: `IMP-${ts}`, name: `Imported PIC ${ts}`, department: 'Support Indent', position: 'Staff', phone_number: '0811223344' }],
+    overwriteExisting: false
+  }, authToken);
+  assert(impEmp.status === 200, `POST /api/employees/batch-import status 200`);
+  assert(impEmp.data.importedCount === 1, `Imported 1 employee`);
+
+  const impCsm = await request('POST', '/api/consumables/batch-import', {
+    items: [{ name: `Ribbon Test ${ts}`, category: 'ribbon', unit: 'pcs', current_stock: 10, min_stock_alert: 3 }],
+    overwriteExisting: false
+  });
+  assert(impCsm.status === 200, `POST /api/consumables/batch-import status 200`);
+  assert(impCsm.data.importedCount === 1, `Imported 1 ribbon consumable`);
+
+  // 14. Monthly Consumables Report (ATK / Tinta / Ribbon)
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const monthlyRep = await request('GET', `/api/reports/consumables-monthly?month=${currentMonth}&category=ribbon`);
+  assert(monthlyRep.status === 200, `GET /api/reports/consumables-monthly status 200`);
+  assert(monthlyRep.data.month === currentMonth, `Monthly report period matches ${currentMonth}`);
+  assert(Array.isArray(monthlyRep.data.items) && monthlyRep.data.items.some(i => i.name === `Ribbon Test ${ts}` && i.total_in_month >= 10), `Monthly report includes imported ribbon and restock count`);
+
+  const monthlyCsv = await request('GET', `/api/reports/export?type=consumables-monthly&month=${currentMonth}`);
+  assert(monthlyCsv.status === 200, `Monthly consumables CSV export status 200`);
+  assert(monthlyCsv.headers['content-type']?.includes('text/csv'), `Monthly CSV Content-Type is text/csv`);
+
+  // Cleanup imported test rows
+  const catsAll = await request('GET', '/api/categories');
+  const createdCat = (catsAll.data || []).find(c => c.code === `imp_cat_${ts}`);
+  if (createdCat) await request('DELETE', `/api/categories/${createdCat.id}`, null, authToken);
+
+  const locsAll = await request('GET', '/api/locations');
+  const createdLoc = (locsAll.data || []).find(l => l.name === `Imported Loc ${ts}`);
+  if (createdLoc) await request('DELETE', `/api/locations/${createdLoc.id}`, null, authToken);
+
+  const empsAll = await request('GET', '/api/employees');
+  const createdEmp = (empsAll.data || []).find(e => e.nik === `IMP-${ts}`);
+  if (createdEmp) await request('DELETE', `/api/employees/${createdEmp.id}`, null, authToken);
+
   console.log(`\n--- TEST RESULTS: ${passes} passed, ${failures} failed ---`);
   if (failures > 0) {
     console.error('❌ Integration Test Suite Failed.');

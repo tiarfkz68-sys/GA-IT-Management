@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../db.js';
+import { pool, query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
@@ -62,6 +62,69 @@ router.post('/', authenticate, requireRole('admin', 'ga', 'it'), async (req, res
       return sendError(res, 409, `Lokasi "${name}" sudah terdaftar.`, 'CONFLICT');
     }
     sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
+  }
+});
+
+// 2b. Batch Import locations (Admin, GA, IT)
+router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it'), async (req, res) => {
+  const { items = [], overwriteExisting = false } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return sendError(res, 400, 'Data lokasi untuk diimpor tidak boleh kosong.', 'VALIDATION_ERROR');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const imported = [];
+    const updated = [];
+    const skipped = [];
+
+    for (const item of items) {
+      const name = String(item.name || '').trim();
+      const building_floor = item.building_floor ? String(item.building_floor).trim() : null;
+      const description = item.description ? String(item.description).trim() : null;
+
+      if (!name) {
+        skipped.push({ name: '-', reason: 'Nama lokasi kosong' });
+        continue;
+      }
+
+      const exist = await client.query(`SELECT id FROM locations WHERE LOWER(name) = LOWER($1)`, [name]);
+      if (exist.rows.length > 0) {
+        if (!overwriteExisting) {
+          skipped.push({ name, reason: 'Nama lokasi sudah terdaftar' });
+          continue;
+        }
+        await client.query(
+          `UPDATE locations SET building_floor = $1, description = $2 WHERE id = $3`,
+          [building_floor, description, exist.rows[0].id]
+        );
+        updated.push(name);
+      } else {
+        const ins = await client.query(
+          `INSERT INTO locations (name, building_floor, description) VALUES ($1, $2, $3) RETURNING id, name`,
+          [name, building_floor, description]
+        );
+        imported.push(ins.rows[0]);
+      }
+    }
+
+    await client.query('COMMIT');
+    invalidateLocationsCache();
+    await logActivity(req.user?.name || 'Admin', 'IMPORT_LOCATIONS', 'SETTINGS', null, `Import ${imported.length} lokasi baru, update ${updated.length}, lewati ${skipped.length}`);
+
+    res.json({
+      message: `Impor lokasi selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
+      importedCount: imported.length,
+      updatedCount: updated.length,
+      skippedCount: skipped.length,
+      skipped
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
+  } finally {
+    client.release();
   }
 });
 

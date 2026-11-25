@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-25
+
+### Added
+- **Pusat Import Data Master (`#nav-import` / `#view-import`)**: Menu khusus di sidebar untuk import massal file Excel (`.xlsx`, `.xls`) dan CSV bagi:
+  - **Kategori Barang** (`POST /api/categories/batch-import`)
+  - **Master Lokasi Kantor** (`POST /api/locations/batch-import`)
+  - **Master PIC / Karyawan** (`POST /api/employees/batch-import`)
+  - **Master ATK, Tinta & Ribbon** (`POST /api/consumables/batch-import`)
+  - Dilengkapi fitur download template Excel otomatis per tipe data, pratinjau validasi baris, serta opsi *Overwrite* data duplikat.
+- **Laporan Bulanan ATK, Tinta, Toner & Ribbon**:
+  - Tabel riwayat stok masuk `consumable_restocks` untuk melacak restock bulanan secara akurat.
+  - Endpoint `GET /api/reports/consumables-monthly` dan ekspor CSV `GET /api/reports/export?type=consumables-monthly`.
+  - Modal interaktif laporan bulanan di tab *Consumables (ATK)* dengan pemilih periode bulan (`<input type="month">`), filter kategori (termasuk **Ribbon / Pita Printer** & **Tinta / Toner**), 4 kartu ringkasan KPI, tab rekapitulasi per barang, tab rincian transaksi keluar, ekspor Excel 2-sheet (`.xlsx`), ekspor CSV, dan cetak A4.
+
+### Verified
+- **Integration Tests**: 48/48 tests passing (`npm test`).
+- **Accessibility**: 0 WCAG 2.2 AA violations via `@axe-core/cli 4.13.0`.
+- **Syntax Gate**: 21/21 JavaScript files verified (`npm run check`).
+
+---
+
 ## [1.2.0] - 2026-11-23
 
 ### Added

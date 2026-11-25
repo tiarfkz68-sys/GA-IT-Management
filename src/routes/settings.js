@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { query } from '../db.js';
+import { pool, query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
@@ -116,6 +116,73 @@ router.post('/categories', authenticate, requireRole('admin', 'it', 'ga'), async
       return sendError(res, 409, `Kode kategori "${code}" sudah terdaftar.`, 'CONFLICT');
     }
     sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
+  }
+});
+
+// Admin, IT, or GA can batch import categories
+router.post('/categories/batch-import', authenticate, requireRole('admin', 'it', 'ga'), async (req, res) => {
+  const { items = [], overwriteExisting = false } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return sendError(res, 400, 'Data kategori untuk diimpor tidak boleh kosong.', 'VALIDATION_ERROR');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const imported = [];
+    const updated = [];
+    const skipped = [];
+
+    for (const item of items) {
+      const domain = String(item.domain || 'IT').toUpperCase().trim();
+      const rawCode = String(item.code || '').trim();
+      const name = String(item.name || '').trim();
+      const tagPrefix = String(item.tag_prefix || '').toUpperCase().trim();
+      const icon = String(item.icon || 'fa-box').trim();
+
+      if (!name || !rawCode || !tagPrefix || !['IT', 'GA'].includes(domain)) {
+        skipped.push({ code: rawCode || '-', name: name || '-', reason: 'Data tidak lengkap atau domain bukan IT/GA' });
+        continue;
+      }
+
+      const cleanCode = rawCode.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const exist = await client.query(`SELECT id FROM categories WHERE LOWER(code) = LOWER($1)`, [cleanCode]);
+
+      if (exist.rows.length > 0) {
+        if (!overwriteExisting) {
+          skipped.push({ code: cleanCode, name, reason: 'Kode kategori sudah terdaftar' });
+          continue;
+        }
+        await client.query(
+          `UPDATE categories SET domain = $1, name = $2, tag_prefix = $3, icon = $4 WHERE id = $5`,
+          [domain, name, tagPrefix, icon, exist.rows[0].id]
+        );
+        updated.push(cleanCode);
+      } else {
+        const ins = await client.query(
+          `INSERT INTO categories (domain, code, name, tag_prefix, icon) VALUES ($1, $2, $3, $4, $5) RETURNING id, code, name`,
+          [domain, cleanCode, name, tagPrefix, icon]
+        );
+        imported.push(ins.rows[0]);
+      }
+    }
+
+    await client.query('COMMIT');
+    invalidateCategoriesCache();
+    await logActivity(req.user?.name || 'Admin', 'IMPORT_CATEGORIES', 'SETTINGS', null, `Import ${imported.length} kategori baru, update ${updated.length}, lewati ${skipped.length}`);
+
+    res.json({
+      message: `Impor kategori selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
+      importedCount: imported.length,
+      updatedCount: updated.length,
+      skippedCount: skipped.length,
+      skipped
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
+  } finally {
+    client.release();
   }
 });
 
