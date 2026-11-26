@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool, query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
+import { runBatchImport } from '../utils/batchImport.js';
 
 const router = Router();
 
@@ -84,22 +85,18 @@ router.post('/batch-create', async (req, res) => {
 // Batch Import Master Consumables / ATK
 router.post('/batch-import', async (req, res) => {
   const { items = [], overwriteExisting = false, userName } = req.body;
-  if (!Array.isArray(items) || items.length === 0) {
-    return sendError(res, 400, 'Data barang ATK untuk diimpor tidak boleh kosong', 'VALIDATION_ERROR');
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const imported = [];
-    const updated = [];
-    const skipped = [];
-
-    for (const it of items) {
+  return runBatchImport(res, {
+    items,
+    emptyError: 'Data barang ATK untuk diimpor tidak boleh kosong',
+    entityLabel: 'ATK',
+    userName: userName || 'Admin',
+    logAction: 'IMPORT_CONSUMABLES',
+    logTargetType: 'CONSUMABLE',
+    processItem: async (client, it, { imported, updated, skipped }) => {
       const name = String(it.name || '').trim();
       if (!name) {
         skipped.push({ name: '-', reason: 'Nama barang kosong' });
-        continue;
+        return;
       }
       const category = String(it.category || 'atk').toLowerCase().trim();
       const unit = String(it.unit || 'pcs').trim();
@@ -110,7 +107,7 @@ router.post('/batch-import', async (req, res) => {
       if (exist.rows.length > 0) {
         if (!overwriteExisting) {
           skipped.push({ name, reason: 'Nama barang ATK sudah terdaftar' });
-          continue;
+          return;
         }
         await client.query(
           `UPDATE consumables SET category = $1, unit = $2, current_stock = $3, min_stock_alert = $4 WHERE id = $5`,
@@ -132,22 +129,7 @@ router.post('/batch-import', async (req, res) => {
         imported.push(ins.rows[0]);
       }
     }
-
-    await client.query('COMMIT');
-    await logActivity(userName || 'Admin', 'IMPORT_CONSUMABLES', 'CONSUMABLE', null, `Import ${imported.length} ATK baru, update ${updated.length}, lewati ${skipped.length}`);
-    res.json({
-      message: `Impor ATK selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
-      importedCount: imported.length,
-      updatedCount: updated.length,
-      skippedCount: skipped.length,
-      skipped
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
-  } finally {
-    client.release();
-  }
+  });
 });
 
 // Batch Restock (Penerimaan Stok Multi-line dari Nota)

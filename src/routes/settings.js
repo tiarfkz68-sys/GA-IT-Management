@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { pool, query } from '../db.js';
+import { query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
+import { runBatchImport } from '../utils/batchImport.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -122,18 +123,15 @@ router.post('/categories', authenticate, requireRole('admin', 'it', 'ga'), async
 // Admin, IT, or GA can batch import categories
 router.post('/categories/batch-import', authenticate, requireRole('admin', 'it', 'ga'), async (req, res) => {
   const { items = [], overwriteExisting = false } = req.body;
-  if (!Array.isArray(items) || items.length === 0) {
-    return sendError(res, 400, 'Data kategori untuk diimpor tidak boleh kosong.', 'VALIDATION_ERROR');
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const imported = [];
-    const updated = [];
-    const skipped = [];
-
-    for (const item of items) {
+  return runBatchImport(res, {
+    items,
+    emptyError: 'Data kategori untuk diimpor tidak boleh kosong.',
+    entityLabel: 'kategori',
+    userName: req.user?.name || 'Admin',
+    logAction: 'IMPORT_CATEGORIES',
+    logTargetType: 'SETTINGS',
+    onSuccess: invalidateCategoriesCache,
+    processItem: async (client, item, { imported, updated, skipped }) => {
       const domain = String(item.domain || 'IT').toUpperCase().trim();
       const rawCode = String(item.code || '').trim();
       const name = String(item.name || '').trim();
@@ -142,7 +140,7 @@ router.post('/categories/batch-import', authenticate, requireRole('admin', 'it',
 
       if (!name || !rawCode || !tagPrefix || !['IT', 'GA'].includes(domain)) {
         skipped.push({ code: rawCode || '-', name: name || '-', reason: 'Data tidak lengkap atau domain bukan IT/GA' });
-        continue;
+        return;
       }
 
       const cleanCode = rawCode.toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -151,7 +149,7 @@ router.post('/categories/batch-import', authenticate, requireRole('admin', 'it',
       if (exist.rows.length > 0) {
         if (!overwriteExisting) {
           skipped.push({ code: cleanCode, name, reason: 'Kode kategori sudah terdaftar' });
-          continue;
+          return;
         }
         await client.query(
           `UPDATE categories SET domain = $1, name = $2, tag_prefix = $3, icon = $4 WHERE id = $5`,
@@ -166,24 +164,7 @@ router.post('/categories/batch-import', authenticate, requireRole('admin', 'it',
         imported.push(ins.rows[0]);
       }
     }
-
-    await client.query('COMMIT');
-    invalidateCategoriesCache();
-    await logActivity(req.user?.name || 'Admin', 'IMPORT_CATEGORIES', 'SETTINGS', null, `Import ${imported.length} kategori baru, update ${updated.length}, lewati ${skipped.length}`);
-
-    res.json({
-      message: `Impor kategori selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
-      importedCount: imported.length,
-      updatedCount: updated.length,
-      skippedCount: skipped.length,
-      skipped
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
-  } finally {
-    client.release();
-  }
+  });
 });
 
 // Admin only can delete categories

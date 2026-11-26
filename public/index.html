@@ -2963,7 +2963,10 @@
     async function loadUsers() {
       try {
         const res = await fetch('/api/users');
-        state.users = await res.json();
+        if (!res.ok) return;
+        const users = await res.json();
+        if (!Array.isArray(users)) return;
+        state.users = users;
         renderUsersTable(state.users);
         const optionsHtml = state.users.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml((u.role || '').toUpperCase())})</option>`).join('');
         document.getElementById('new-assigned-user').innerHTML = '<option value="">-- Belum Di-assign (Di Gudang) --</option>' + optionsHtml;

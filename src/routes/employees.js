@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { pool, query } from '../db.js';
+import { query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
+import { runBatchImport } from '../utils/batchImport.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -98,18 +99,15 @@ router.post('/', authenticate, requireRole('admin', 'ga', 'it', 'hrd'), async (r
 // 2b. Batch Import employees / PIC
 router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it', 'hrd'), async (req, res) => {
   const { items = [], overwriteExisting = false } = req.body;
-  if (!Array.isArray(items) || items.length === 0) {
-    return sendError(res, 400, 'Data PIC / karyawan untuk diimpor tidak boleh kosong.', 'VALIDATION_ERROR');
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const imported = [];
-    const updated = [];
-    const skipped = [];
-
-    for (const item of items) {
+  return runBatchImport(res, {
+    items,
+    emptyError: 'Data PIC / karyawan untuk diimpor tidak boleh kosong.',
+    entityLabel: 'PIC',
+    userName: req.user?.name || 'Admin',
+    logAction: 'IMPORT_EMPLOYEES',
+    logTargetType: 'PIC',
+    onSuccess: invalidateEmployeesCache,
+    processItem: async (client, item, { imported, updated, skipped }) => {
       const nik = item.nik ? String(item.nik).trim() : null;
       const name = String(item.name || '').trim();
       const department = String(item.department || '').trim();
@@ -118,20 +116,17 @@ router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it', 'hrd
 
       if (!name || !department) {
         skipped.push({ nik: nik || '-', name: name || '-', reason: 'Nama atau Bagian/Departemen wajib diisi' });
-        continue;
+        return;
       }
 
-      let exist = { rows: [] };
-      if (nik) {
-        exist = await client.query(`SELECT id FROM employees WHERE LOWER(nik) = LOWER($1)`, [nik]);
-      } else {
-        exist = await client.query(`SELECT id FROM employees WHERE LOWER(name) = LOWER($1) AND LOWER(department) = LOWER($2)`, [name, department]);
-      }
+      const exist = nik
+        ? await client.query(`SELECT id FROM employees WHERE LOWER(nik) = LOWER($1)`, [nik])
+        : await client.query(`SELECT id FROM employees WHERE LOWER(name) = LOWER($1) AND LOWER(department) = LOWER($2)`, [name, department]);
 
       if (exist.rows.length > 0) {
         if (!overwriteExisting) {
           skipped.push({ nik: nik || '-', name, reason: 'Karyawan/NIK sudah terdaftar' });
-          continue;
+          return;
         }
         await client.query(
           `UPDATE employees SET nik = COALESCE($1, nik), name = $2, department = $3, position = $4, phone_number = $5, is_active = TRUE WHERE id = $6`,
@@ -146,24 +141,7 @@ router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it', 'hrd
         imported.push(ins.rows[0]);
       }
     }
-
-    await client.query('COMMIT');
-    invalidateEmployeesCache();
-    await logActivity(req.user?.name || 'Admin', 'IMPORT_EMPLOYEES', 'PIC', null, `Import ${imported.length} PIC baru, update ${updated.length}, lewati ${skipped.length}`);
-
-    res.json({
-      message: `Impor PIC selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
-      importedCount: imported.length,
-      updatedCount: updated.length,
-      skippedCount: skipped.length,
-      skipped
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
-  } finally {
-    client.release();
-  }
+  });
 });
 
 // 3. Update employee

@@ -14,6 +14,61 @@ function sanitizeCsvCell(val) {
   return `"${str.replace(/"/g, '""')}"`;
 }
 
+function resolveMonthParam(rawMonth) {
+  return /^\d{4}-\d{2}$/.test(rawMonth || '') ? rawMonth : new Date().toISOString().slice(0, 7);
+}
+
+async function fetchMonthlyConsumables(monthParam, category = '', includeTransactions = false) {
+  const startDate = `${monthParam}-01`;
+  const params = category ? [startDate, category] : [startDate];
+  const catFilter = category ? `AND c.category = $2` : '';
+
+  const itemsQuery = query(`
+    SELECT c.id, c.name, c.category, c.unit, c.current_stock, c.min_stock_alert,
+      (c.current_stock <= c.min_stock_alert) as is_low_stock,
+      COALESCE((
+        SELECT SUM(cr.quantity) FROM consumable_restocks cr
+        WHERE cr.consumable_id = c.id
+          AND cr.restock_date >= $1::date
+          AND cr.restock_date < ($1::date + INTERVAL '1 month')
+      ), 0)::int as total_in_month,
+      COALESCE((
+        SELECT SUM(cc.quantity) FROM consumable_checkouts cc
+        WHERE cc.consumable_id = c.id
+          AND cc.checkout_date >= $1::date
+          AND cc.checkout_date < ($1::date + INTERVAL '1 month')
+      ), 0)::int as total_out_month,
+      COALESCE((
+        SELECT COUNT(*) FROM consumable_checkouts cc
+        WHERE cc.consumable_id = c.id
+          AND cc.checkout_date >= $1::date
+          AND cc.checkout_date < ($1::date + INTERVAL '1 month')
+      ), 0)::int as checkout_tx_count
+    FROM consumables c
+    WHERE 1=1 ${catFilter}
+    ORDER BY total_out_month DESC, c.name ASC
+  `, params);
+
+  if (!includeTransactions) {
+    const itemsRes = await itemsQuery;
+    return { items: itemsRes.rows, transactions: [] };
+  }
+
+  const txQuery = query(`
+    SELECT cc.id, cc.consumable_id, cc.recipient_name, cc.quantity, cc.notes, cc.checkout_date,
+           c.name as item_name, c.category, c.unit
+    FROM consumable_checkouts cc
+    JOIN consumables c ON cc.consumable_id = c.id
+    WHERE cc.checkout_date >= $1::date
+      AND cc.checkout_date < ($1::date + INTERVAL '1 month')
+      ${catFilter}
+    ORDER BY cc.checkout_date DESC, cc.id DESC
+  `, params);
+
+  const [itemsRes, txRes] = await Promise.all([itemsQuery, txQuery]);
+  return { items: itemsRes.rows, transactions: txRes.rows };
+}
+
 router.get('/export', async (req, res) => {
   const { type = 'assets' } = req.query;
   try {
@@ -94,34 +149,13 @@ router.get('/export', async (req, res) => {
         ].join(',') + '\n';
       });
     } else if (type === 'consumables-monthly') {
-      const monthParam = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Date().toISOString().slice(0, 7);
-      const startDate = `${monthParam}-01`;
-      const catFilter = req.query.category ? `AND c.category = $2` : '';
-      const params = req.query.category ? [startDate, req.query.category] : [startDate];
-
-      const result = await query(`
-        SELECT c.name, c.category, c.unit, c.current_stock, c.min_stock_alert,
-          COALESCE((
-            SELECT SUM(cr.quantity) FROM consumable_restocks cr
-            WHERE cr.consumable_id = c.id
-              AND cr.restock_date >= $1::date
-              AND cr.restock_date < ($1::date + INTERVAL '1 month')
-          ), 0)::int as total_in_month,
-          COALESCE((
-            SELECT SUM(cc.quantity) FROM consumable_checkouts cc
-            WHERE cc.consumable_id = c.id
-              AND cc.checkout_date >= $1::date
-              AND cc.checkout_date < ($1::date + INTERVAL '1 month')
-          ), 0)::int as total_out_month
-        FROM consumables c
-        WHERE 1=1 ${catFilter}
-        ORDER BY total_out_month DESC, c.name ASC
-      `, params);
+      const monthParam = resolveMonthParam(req.query.month);
+      const { items } = await fetchMonthlyConsumables(monthParam, req.query.category || '', false);
 
       csvContent = `Laporan Bulanan ATK / Tinta / Ribbon - Periode ${monthParam}\n`;
       csvContent += 'Nama Barang,Kategori,Satuan,Masuk Bulan Ini,Keluar Bulan Ini,Stok Akhir,Batas Min,Status\n';
-      result.rows.forEach(r => {
-        const status = r.current_stock <= r.min_stock_alert ? 'KRITIS / RESTOCK' : 'AMAN';
+      items.forEach(r => {
+        const status = r.is_low_stock ? 'KRITIS / RESTOCK' : 'AMAN';
         csvContent += [
           sanitizeCsvCell(r.name),
           sanitizeCsvCell(r.category),
@@ -147,53 +181,11 @@ router.get('/export', async (req, res) => {
 
 // Laporan Bulanan Pemakaian & Stok ATK / Tinta / Ribbon
 router.get('/consumables-monthly', async (req, res) => {
-  const monthParam = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Date().toISOString().slice(0, 7);
+  const monthParam = resolveMonthParam(req.query.month);
   const category = req.query.category || '';
-  const startDate = `${monthParam}-01`;
 
   try {
-    const params = category ? [startDate, category] : [startDate];
-    const catFilter = category ? `AND c.category = $2` : '';
-
-    const [itemsRes, txRes] = await Promise.all([
-      query(`
-        SELECT c.id, c.name, c.category, c.unit, c.current_stock, c.min_stock_alert,
-          (c.current_stock <= c.min_stock_alert) as is_low_stock,
-          COALESCE((
-            SELECT SUM(cr.quantity) FROM consumable_restocks cr
-            WHERE cr.consumable_id = c.id
-              AND cr.restock_date >= $1::date
-              AND cr.restock_date < ($1::date + INTERVAL '1 month')
-          ), 0)::int as total_in_month,
-          COALESCE((
-            SELECT SUM(cc.quantity) FROM consumable_checkouts cc
-            WHERE cc.consumable_id = c.id
-              AND cc.checkout_date >= $1::date
-              AND cc.checkout_date < ($1::date + INTERVAL '1 month')
-          ), 0)::int as total_out_month,
-          COALESCE((
-            SELECT COUNT(*) FROM consumable_checkouts cc
-            WHERE cc.consumable_id = c.id
-              AND cc.checkout_date >= $1::date
-              AND cc.checkout_date < ($1::date + INTERVAL '1 month')
-          ), 0)::int as checkout_tx_count
-        FROM consumables c
-        WHERE 1=1 ${catFilter}
-        ORDER BY total_out_month DESC, c.name ASC
-      `, params),
-      query(`
-        SELECT cc.id, cc.consumable_id, cc.recipient_name, cc.quantity, cc.notes, cc.checkout_date,
-               c.name as item_name, c.category, c.unit
-        FROM consumable_checkouts cc
-        JOIN consumables c ON cc.consumable_id = c.id
-        WHERE cc.checkout_date >= $1::date
-          AND cc.checkout_date < ($1::date + INTERVAL '1 month')
-          ${catFilter}
-        ORDER BY cc.checkout_date DESC, cc.id DESC
-      `, params)
-    ]);
-
-    const items = itemsRes.rows;
+    const { items, transactions } = await fetchMonthlyConsumables(monthParam, category, true);
     const summary = {
       total_items: items.length,
       total_in: items.reduce((acc, r) => acc + (r.total_in_month || 0), 0),
@@ -206,7 +198,7 @@ router.get('/consumables-monthly', async (req, res) => {
       category: category || 'all',
       summary,
       items,
-      transactions: txRes.rows
+      transactions
     });
   } catch (err) {
     sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');

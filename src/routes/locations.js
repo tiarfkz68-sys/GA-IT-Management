@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { pool, query } from '../db.js';
+import { query } from '../db.js';
 import { logActivity } from '../utils/logger.js';
 import { sendError } from '../utils/errorResponse.js';
+import { runBatchImport } from '../utils/batchImport.js';
 import { authenticate, requireRole, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -68,32 +69,29 @@ router.post('/', authenticate, requireRole('admin', 'ga', 'it'), async (req, res
 // 2b. Batch Import locations (Admin, GA, IT)
 router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it'), async (req, res) => {
   const { items = [], overwriteExisting = false } = req.body;
-  if (!Array.isArray(items) || items.length === 0) {
-    return sendError(res, 400, 'Data lokasi untuk diimpor tidak boleh kosong.', 'VALIDATION_ERROR');
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const imported = [];
-    const updated = [];
-    const skipped = [];
-
-    for (const item of items) {
+  return runBatchImport(res, {
+    items,
+    emptyError: 'Data lokasi untuk diimpor tidak boleh kosong.',
+    entityLabel: 'lokasi',
+    userName: req.user?.name || 'Admin',
+    logAction: 'IMPORT_LOCATIONS',
+    logTargetType: 'SETTINGS',
+    onSuccess: invalidateLocationsCache,
+    processItem: async (client, item, { imported, updated, skipped }) => {
       const name = String(item.name || '').trim();
       const building_floor = item.building_floor ? String(item.building_floor).trim() : null;
       const description = item.description ? String(item.description).trim() : null;
 
       if (!name) {
         skipped.push({ name: '-', reason: 'Nama lokasi kosong' });
-        continue;
+        return;
       }
 
       const exist = await client.query(`SELECT id FROM locations WHERE LOWER(name) = LOWER($1)`, [name]);
       if (exist.rows.length > 0) {
         if (!overwriteExisting) {
           skipped.push({ name, reason: 'Nama lokasi sudah terdaftar' });
-          continue;
+          return;
         }
         await client.query(
           `UPDATE locations SET building_floor = $1, description = $2 WHERE id = $3`,
@@ -108,24 +106,7 @@ router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it'), asy
         imported.push(ins.rows[0]);
       }
     }
-
-    await client.query('COMMIT');
-    invalidateLocationsCache();
-    await logActivity(req.user?.name || 'Admin', 'IMPORT_LOCATIONS', 'SETTINGS', null, `Import ${imported.length} lokasi baru, update ${updated.length}, lewati ${skipped.length}`);
-
-    res.json({
-      message: `Impor lokasi selesai: ${imported.length} baru${updated.length ? `, ${updated.length} diperbarui` : ''}${skipped.length ? `, ${skipped.length} dilewati` : ''}`,
-      importedCount: imported.length,
-      updatedCount: updated.length,
-      skippedCount: skipped.length,
-      skipped
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    sendError(res, 500, err.message, 'INTERNAL_SERVER_ERROR');
-  } finally {
-    client.release();
-  }
+  });
 });
 
 // 3. Update location
