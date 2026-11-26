@@ -66,11 +66,17 @@ router.get('/', optionalAuth, async (req, res) => {
 // 2. Create employee / PIC
 router.post('/', authenticate, requireRole('admin', 'ga', 'it', 'hrd'), async (req, res) => {
   const { nik, name, department, position, phone_number } = req.body;
-  if (!name || !name.trim()) {
-    return sendError(res, 400, 'Nama karyawan/PIC wajib diisi.', 'VALIDATION_ERROR');
+  if (!name || !name.trim() || name.trim().length > 100) {
+    return sendError(res, 400, 'Nama karyawan/PIC wajib diisi (maksimal 100 karakter).', 'VALIDATION_ERROR');
   }
-  if (!department || !department.trim()) {
-    return sendError(res, 400, 'Bagian/Departemen wajib diisi.', 'VALIDATION_ERROR');
+  if (!department || !department.trim() || department.trim().length > 100) {
+    return sendError(res, 400, 'Bagian/Departemen wajib diisi (maksimal 100 karakter).', 'VALIDATION_ERROR');
+  }
+  if (nik && nik.trim().length > 50) {
+    return sendError(res, 400, 'NIK maksimal 50 karakter.', 'VALIDATION_ERROR');
+  }
+  if (phone_number && phone_number.trim().length > 30) {
+    return sendError(res, 400, 'Nomor HP maksimal 30 karakter.', 'VALIDATION_ERROR');
   }
 
   try {
@@ -148,11 +154,17 @@ router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it', 'hrd
 router.put('/:id', authenticate, requireRole('admin', 'ga', 'it', 'hrd'), async (req, res) => {
   const { id } = req.params;
   const { nik, name, department, position, phone_number, is_active } = req.body;
-  if (!name || !name.trim()) {
-    return sendError(res, 400, 'Nama karyawan/PIC wajib diisi.', 'VALIDATION_ERROR');
+  if (!name || !name.trim() || name.trim().length > 100) {
+    return sendError(res, 400, 'Nama karyawan/PIC wajib diisi (maksimal 100 karakter).', 'VALIDATION_ERROR');
   }
-  if (!department || !department.trim()) {
-    return sendError(res, 400, 'Bagian/Departemen wajib diisi.', 'VALIDATION_ERROR');
+  if (!department || !department.trim() || department.trim().length > 100) {
+    return sendError(res, 400, 'Bagian/Departemen wajib diisi (maksimal 100 karakter).', 'VALIDATION_ERROR');
+  }
+  if (nik && nik.trim().length > 50) {
+    return sendError(res, 400, 'NIK maksimal 50 karakter.', 'VALIDATION_ERROR');
+  }
+  if (phone_number && phone_number.trim().length > 30) {
+    return sendError(res, 400, 'Nomor HP maksimal 30 karakter.', 'VALIDATION_ERROR');
   }
 
   try {

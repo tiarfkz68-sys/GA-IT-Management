@@ -5,6 +5,11 @@ import { sendError } from '../utils/errorResponse.js';
 import { runBatchImport } from '../utils/batchImport.js';
 
 const router = Router();
+const ALLOWED_CATEGORIES = new Set(['atk', 'printer_supplies', 'toner', 'ribbon', 'kertas', 'cables', 'it_supplies', 'pantry', 'other']);
+function normalizeCategory(raw) {
+  const cat = String(raw || 'atk').toLowerCase().trim();
+  return ALLOWED_CATEGORIES.has(cat) ? cat : 'other';
+}
 
 // ============================================================
 // 1. CONSUMABLES LIST
@@ -94,14 +99,14 @@ router.post('/batch-import', async (req, res) => {
     logTargetType: 'CONSUMABLE',
     processItem: async (client, it, { imported, updated, skipped }) => {
       const name = String(it.name || '').trim();
-      if (!name) {
-        skipped.push({ name: '-', reason: 'Nama barang kosong' });
+      if (!name || name.length > 150) {
+        skipped.push({ name: name.slice(0, 30) || '-', reason: 'Nama barang kosong atau melebihi 150 karakter' });
         return;
       }
-      const category = String(it.category || 'atk').toLowerCase().trim();
-      const unit = String(it.unit || 'pcs').trim();
-      const current_stock = parseInt(it.current_stock, 10) || 0;
-      const min_stock_alert = parseInt(it.min_stock_alert, 10) || 5;
+      const category = normalizeCategory(it.category);
+      const unit = String(it.unit || 'pcs').trim().slice(0, 20) || 'pcs';
+      const current_stock = Math.max(0, Math.min(100000, parseInt(it.current_stock, 10) || 0));
+      const min_stock_alert = Math.max(1, Math.min(10000, parseInt(it.min_stock_alert, 10) || 5));
 
       const exist = await client.query(`SELECT id FROM consumables WHERE LOWER(name) = LOWER($1)`, [name]);
       if (exist.rows.length > 0) {

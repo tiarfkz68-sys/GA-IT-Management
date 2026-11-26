@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'gait_jwt_super_secret_v2_enterprise_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn('[Security Warning] JWT_SECRET is not set; using ephemeral per-process secret. Set JWT_SECRET in production.');
+  return crypto.randomBytes(32).toString('hex');
+})();
 
 /**
  * Hash password using salted scrypt algorithm

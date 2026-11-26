@@ -245,6 +245,16 @@ async function runTests() {
   const createdEmp = (empsAll.data || []).find(e => e.nik === `IMP-${ts}`);
   if (createdEmp) await request('DELETE', `/api/employees/${createdEmp.id}`, null, authToken);
 
+  // 15. Security Hardening Checks
+  const unauthLoc = await request('POST', '/api/locations', { name: 'Unauthorized Loc' });
+  assert(unauthLoc.status === 401, `Unauthenticated POST /api/locations rejected with 401`);
+  assert(!unauthLoc.headers['x-powered-by'], `X-Powered-By header disabled`);
+  assert(unauthLoc.headers['x-content-type-options'] === 'nosniff', `X-Content-Type-Options: nosniff header present`);
+
+  const oversizedBatch = Array.from({ length: 501 }, (_, i) => ({ name: `Loc ${i}` }));
+  const overImport = await request('POST', '/api/locations/batch-import', { items: oversizedBatch }, authToken);
+  assert(overImport.status === 400, `Oversized batch import (>500 items) rejected with 400`);
+
   console.log(`\n--- TEST RESULTS: ${passes} passed, ${failures} failed ---`);
   if (failures > 0) {
     console.error('❌ Integration Test Suite Failed.');

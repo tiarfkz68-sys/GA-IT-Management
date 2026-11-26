@@ -9,6 +9,7 @@ import { sendError } from './errorResponse.js';
 export async function runBatchImport(res, {
   items,
   emptyError = 'Data untuk diimpor tidak boleh kosong.',
+  maxItems = 500,
   entityLabel,
   userName = 'Admin',
   logAction,
@@ -18,6 +19,9 @@ export async function runBatchImport(res, {
 }) {
   if (!Array.isArray(items) || items.length === 0) {
     return sendError(res, 400, emptyError, 'VALIDATION_ERROR');
+  }
+  if (items.length > maxItems) {
+    return sendError(res, 400, `Maksimal ${maxItems} baris per proses import.`, 'VALIDATION_ERROR');
   }
 
   const client = await pool.connect();

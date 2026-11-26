@@ -45,8 +45,8 @@ router.get('/', optionalAuth, async (req, res) => {
 // 2. Create location (Admin, GA, IT)
 router.post('/', authenticate, requireRole('admin', 'ga', 'it'), async (req, res) => {
   const { name, building_floor, description } = req.body;
-  if (!name || !name.trim()) {
-    return sendError(res, 400, 'Nama lokasi wajib diisi.', 'VALIDATION_ERROR');
+  if (!name || !name.trim() || name.trim().length > 100) {
+    return sendError(res, 400, 'Nama lokasi wajib diisi (maksimal 100 karakter).', 'VALIDATION_ERROR');
   }
 
   try {
@@ -113,8 +113,8 @@ router.post('/batch-import', authenticate, requireRole('admin', 'ga', 'it'), asy
 router.put('/:id', authenticate, requireRole('admin', 'ga', 'it'), async (req, res) => {
   const { id } = req.params;
   const { name, building_floor, description } = req.body;
-  if (!name || !name.trim()) {
-    return sendError(res, 400, 'Nama lokasi wajib diisi.', 'VALIDATION_ERROR');
+  if (!name || !name.trim() || name.trim().length > 100) {
+    return sendError(res, 400, 'Nama lokasi wajib diisi (maksimal 100 karakter).', 'VALIDATION_ERROR');
   }
 
   try {
