@@ -260,6 +260,22 @@ async function runTests() {
   assert(health.status === 200, `GET /api/health status 200`);
   assert(health.data.status === 'ok' && health.data.db === 'connected', `Health check reports ok & db connected`);
 
+  // 17. User Management List & Password Update Flow
+  const userList = await request('GET', '/api/users', null, authToken);
+  assert(userList.status === 200 && Array.isArray(userList.data) && userList.data.length >= 1, `Authenticated GET /api/users returns user list`);
+
+  const tmpEmail = `ci.user.${ts}@company.com`;
+  const tmpUser = await request('POST', '/api/users', { name: 'CI Temp User', email: tmpEmail, password: 'oldpass123', role: 'employee' }, authToken);
+  assert(tmpUser.status === 201, `POST /api/users creates temporary user`);
+
+  const updUser = await request('PUT', `/api/users/${tmpUser.data.id}`, { name: 'CI Temp User', email: tmpEmail, role: 'it', password: 'newpass456' }, authToken);
+  assert(updUser.status === 200 && updUser.data.role === 'it', `PUT /api/users/:id updates role & password`);
+
+  const newLogin = await request('POST', '/api/auth/login', { email: tmpEmail, password: 'newpass456' });
+  assert(newLogin.status === 200, `Updated password works on login`);
+
+  await request('DELETE', `/api/users/${tmpUser.data.id}`, null, authToken);
+
   console.log(`\n--- TEST RESULTS: ${passes} passed, ${failures} failed ---`);
   if (failures > 0) {
     console.error('❌ Integration Test Suite Failed.');
