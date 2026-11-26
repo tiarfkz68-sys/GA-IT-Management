@@ -52,7 +52,12 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, '../public'), {
   maxAge: '1h',
   etag: true,
-  lastModified: true
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
 }));
 
 // Health Check Endpoint (for aaPanel / Docker / Load Balancer probes)
