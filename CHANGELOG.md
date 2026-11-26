@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2026-11-25
+## [1.3.0] - 2026-11-26
 
 ### Added
 - **Pusat Import Data Master (`#nav-import` / `#view-import`)**: Menu khusus di sidebar untuk import massal file Excel (`.xlsx`, `.xls`) dan CSV bagi:
@@ -19,10 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Endpoint `GET /api/reports/consumables-monthly` dan ekspor CSV `GET /api/reports/export?type=consumables-monthly`.
   - Modal interaktif laporan bulanan di tab *Consumables (ATK)* dengan pemilih periode bulan (`<input type="month">`), filter kategori (termasuk **Ribbon / Pita Printer** & **Tinta / Toner**), 4 kartu ringkasan KPI, tab rekapitulasi per barang, tab rincian transaksi keluar, ekspor Excel 2-sheet (`.xlsx`), ekspor CSV, dan cetak A4.
 
+### Changed
+- **Backend Refactoring**: Mengekstrak helper transaksi `runBatchImport()` ([`src/utils/batchImport.js`](file:///c:/Users/IT/Documents/GA-IT%20Management/src/utils/batchImport.js)) untuk seluruh endpoint batch import dan menyatukan query SQL laporan bulanan di `fetchMonthlyConsumables()` ([`src/routes/reports.js`](file:///c:/Users/IT/Documents/GA-IT%20Management/src/routes/reports.js)).
+
+### Security
+- **JWT & HTTP Hardening**: Menghapus fallback `JWT_SECRET` statis di [`src/utils/auth.js`](file:///c:/Users/IT/Documents/GA-IT%20Management/src/utils/auth.js), menonaktifkan header `X-Powered-By`, menambahkan HSTS pada koneksi HTTPS, serta menurunkan batas JSON payload ke `2mb`.
+- **Input & DoS Bounds**: Membatasi maksimal 500 baris per batch import, menambahkan allowlist kategori consumables, serta validasi panjang karakter pada Master Lokasi & PIC.
+
 ### Verified
-- **Integration Tests**: 48/48 tests passing (`npm test`).
+- **Integration & Security Tests**: 52/52 tests passing (`npm test`).
 - **Accessibility**: 0 WCAG 2.2 AA violations via `@axe-core/cli 4.13.0`.
-- **Syntax Gate**: 21/21 JavaScript files verified (`npm run check`).
+- **Syntax Gate**: 22/22 JavaScript files verified (`npm run check`).
+- **Dependency Audit**: 0 vulnerabilities (`npm audit --omit=dev`).
 
 ---
 
