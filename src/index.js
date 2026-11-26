@@ -17,6 +17,7 @@ import reportRoutes from './routes/reports.js';
 import locationsRoutes from './routes/locations.js';
 import employeesRoutes from './routes/employees.js';
 import { sendError } from './utils/errorResponse.js';
+import { query } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +54,27 @@ app.use(express.static(path.join(__dirname, '../public'), {
   etag: true,
   lastModified: true
 }));
+
+// Health Check Endpoint (for aaPanel / Docker / Load Balancer probes)
+app.get('/api/health', async (req, res) => {
+  try {
+    await query('SELECT 1');
+    res.json({
+      status: 'ok',
+      service: 'ga-it-management',
+      db: 'connected',
+      uptime_seconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'error',
+      service: 'ga-it-management',
+      db: 'disconnected',
+      error: 'Database unavailable'
+    });
+  }
+});
 
 // Domain Routes
 app.use('/api/auth', authRoutes);

@@ -255,6 +255,11 @@ async function runTests() {
   const overImport = await request('POST', '/api/locations/batch-import', { items: oversizedBatch }, authToken);
   assert(overImport.status === 400, `Oversized batch import (>500 items) rejected with 400`);
 
+  // 16. Production Health Check Endpoint
+  const health = await request('GET', '/api/health');
+  assert(health.status === 200, `GET /api/health status 200`);
+  assert(health.data.status === 'ok' && health.data.db === 'connected', `Health check reports ok & db connected`);
+
   console.log(`\n--- TEST RESULTS: ${passes} passed, ${failures} failed ---`);
   if (failures > 0) {
     console.error('❌ Integration Test Suite Failed.');
