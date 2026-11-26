@@ -62,7 +62,7 @@ jobs:
         run: npm ci
 
       - name: Seed Database Schema
-        run: PGPASSWORD=gait_secret_password psql -h localhost -U gait_user -d gait_db -f init.sql
+        run: PGPASSWORD=gait_secret_password psql -v ON_ERROR_STOP=1 -h localhost -U gait_user -d gait_db -f init.sql
 
       - name: Start Server in Background
         run: |
@@ -71,6 +71,7 @@ jobs:
         env:
           PORT: 3000
           NODE_ENV: production
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci_ephemeral_test_secret_2026' }}
           DATABASE_URL: postgres://gait_user:gait_secret_password@localhost:5432/gait_db
 
       - name: Run API Integration Tests
@@ -109,7 +110,7 @@ jobs:
         run: npm ci
 
       - name: Seed Database Schema
-        run: PGPASSWORD=gait_secret_password psql -h localhost -U gait_user -d gait_db -f init.sql
+        run: PGPASSWORD=gait_secret_password psql -v ON_ERROR_STOP=1 -h localhost -U gait_user -d gait_db -f init.sql
 
       - name: Start Server in Background
         run: |
@@ -118,6 +119,7 @@ jobs:
         env:
           PORT: 3000
           NODE_ENV: production
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci_ephemeral_test_secret_2026' }}
           DATABASE_URL: postgres://gait_user:gait_secret_password@localhost:5432/gait_db
 
       - name: Run axe-core CLI WCAG 2.2 AA Audit

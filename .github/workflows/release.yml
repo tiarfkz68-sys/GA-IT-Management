@@ -28,6 +28,9 @@ jobs:
       - name: Syntax Check
         run: npm run check
 
+      - name: Security Audit
+        run: npm audit --audit-level=high
+
       - name: Extract Tag Name
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT

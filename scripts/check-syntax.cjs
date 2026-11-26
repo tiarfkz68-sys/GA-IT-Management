@@ -32,7 +32,25 @@ checkDir('src');
 checkDir('tests');
 checkDir('scripts');
 
-console.log(`Checked ${checkedCount} JavaScript files.`);
+// Also validate inline <script> blocks in public/index.html
+const indexPath = path.join('public', 'index.html');
+if (fs.existsSync(indexPath)) {
+  const html = fs.readFileSync(indexPath, 'utf8');
+  const scripts = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/gi) || [];
+  scripts.forEach((tag, idx) => {
+    const code = tag.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '').trim();
+    if (!code) return;
+    checkedCount++;
+    try {
+      new Function(code);
+    } catch (err) {
+      console.error(`[SYNTAX ERROR] in ${indexPath} inline <script> #${idx + 1}:\n`, err.message);
+      hasError = true;
+    }
+  });
+}
+
+console.log(`Checked ${checkedCount} JavaScript files / inline scripts.`);
 
 if (hasError) {
   console.error('❌ Quality Gate Failed: Syntax errors detected.');

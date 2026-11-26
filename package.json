@@ -10,6 +10,7 @@
     "check": "node scripts/check-syntax.cjs",
     "test": "node tests/api.test.cjs",
     "test:integration": "node tests/api.test.cjs",
+    "verify": "npm run check && npm test",
     "perf:check": "node scratch/measure_perf.cjs"
   },
   "dependencies": {
