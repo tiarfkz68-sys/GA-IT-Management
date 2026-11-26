@@ -50,12 +50,14 @@ app.use(compression({
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, '../public'), {
-  maxAge: '1h',
+  cacheControl: false,
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
     }
   }
 }));
