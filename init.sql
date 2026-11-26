@@ -199,64 +199,11 @@ INSERT INTO categories (domain, code, name, tag_prefix, icon) VALUES
 ('GA', 'furniture', 'Meja, Kursi & Perabot', 'GA-FUR', 'fa-couch'),
 ('GA', 'facility_other', 'Fasilitas & Gedung', 'GA-FCL', 'fa-building');
 
--- Primary Assets
-INSERT INTO assets (code, name, category, subcategory, serial_number, status, location, specs, assigned_to_user_id) VALUES
-('IT-LPT-001', 'MacBook Pro M3 Pro 14"', 'IT', 'laptop', 'C02G90XXMD6M', 'assigned', 'Jakarta HQ - Lt 3', 
- '{"processor": "Apple M3 Pro", "ram": "18GB", "storage": "512GB SSD", "os": "macOS Sonoma"}'::jsonb, 6),
+-- Database dimulai bersih (tanpa data dummy Aset, Aksesoris, Consumables/ATK, Maintenance, & Tiket)
 
-('IT-LPT-002', 'ThinkPad T14s Gen 4', 'IT', 'laptop', 'PF-4M198X', 'available', 'IT Storage', 
- '{"processor": "AMD Ryzen 7 PRO 7840U", "ram": "32GB", "storage": "1TB SSD", "os": "Windows 11 Pro"}'::jsonb, NULL),
-
-('IT-PHN-001', 'Samsung Galaxy A55 5G (Testing)', 'IT', 'smartphone', '358941293847120', 'assigned', 'Engineering Bay', 
- '{"ram": "8GB", "storage": "256GB", "imei": "358941293847120", "os": "Android 14"}'::jsonb, 2),
-
-('IT-MON-001', 'Dell UltraSharp 27" 4K (U2723QE)', 'IT', 'monitor', 'CN-098KLA-7442', 'assigned', 'Ruang IT Lantai 3', 
- '{"panel": "IPS Black 4K", "ports": "USB-C Hub, HDMI, DP"}'::jsonb, 2),
-
-('GA-AC-001', 'AC Daikin Inverter 2 PK Ruang Rapat', 'GA', 'ac', 'DK-2023-AC09', 'available', 'Lantai 2 - Ruang Rapat Bromo', 
- '{"capacity_pk": "2.0 PK", "refrigerant": "R32", "voltage": "220V"}'::jsonb, NULL),
-
-('GA-VEH-001', 'Toyota Avanza Veloz (B 1234 CD)', 'GA', 'vehicle', 'MHKM1BA3J890123', 'available', 'Basement Parking', 
- '{"transmission": "CVT Automatic", "fuel": "Bensin", "tahun": "2024"}'::jsonb, NULL);
-
--- Asset Handover History
-INSERT INTO asset_user_history (asset_id, from_user_id, to_user_id, action_type, condition, bast_number, notes) VALUES
-(1, NULL, 6, 'checkout', 'Baik (Baru)', 'BAST/2026/01/001', 'Penyerahan unit laptop baru untuk karyawan onboarding.');
-
--- Asset Maintenances
-INSERT INTO asset_maintenances (asset_id, maintenance_date, type, cost, vendor, notes) VALUES
-(5, '2026-10-15', 'cuci_ac', 150000, 'CV Sejuk Mandiri', 'Cuci filter dan cek tekanan freon R32 normal.'),
-(1, '2026-09-01', 'perbaikan', 0, 'Apple Authorized Service', 'Pembersihan port USB-C dan diagnostik baterai.');
-
--- Accessories
-INSERT INTO accessories (name, category, serial_number, status, linked_asset_id, assigned_to_user_id) VALUES
-('Logitech MX Master 3S', 'mouse', 'SN-LOG-98213', 'assigned', 1, 6),
-('Keychron K2 Wireless Keyboard', 'keyboard', 'SN-K2-88741', 'assigned', 1, 6),
-('Apple 96W USB-C Power Adapter', 'charger', 'SN-APL-CHG01', 'assigned', 1, 6),
-('Dell Premier Wireless Mouse', 'mouse', 'SN-DLL-44312', 'available', NULL, NULL);
-
--- Consumables
-INSERT INTO consumables (name, category, current_stock, min_stock_alert, unit) VALUES
-('Kertas A4 PaperOne 80gr', 'atk', 45, 10, 'rim'),
-('Toner HP LaserJet 85A (CE285A)', 'printer_supplies', 3, 5, 'pcs'),
-('Baterai Alkaline AA (Isi 2)', 'other', 24, 8, 'pack'),
-('Kabel Patch LAN Cat6 3 Meter', 'cables', 15, 5, 'pcs');
-
-INSERT INTO consumable_checkouts (consumable_id, recipient_name, quantity, notes) VALUES
-(1, 'Budi Santoso (Finance)', 2, 'Untuk cetak laporan akhir bulan'),
-(2, 'Siti Sarah (GA)', 1, 'Penggantian toner printer kantor lt 2');
-
--- Tickets
-INSERT INTO tickets (ticket_no, title, description, category, priority, status, requester_id, related_asset_id, resolution_note) VALUES
-('LOG-2026-001', 'AC Ruang Bromo Bunyi Berderit', 'Suara blower AC agak berisik saat kipas kecepatan tinggi.', 'MAINTENANCE', 'medium', 'open', 6, 5, NULL),
-('LOG-2026-002', 'Permintaan Mouse Ergonomis Tambahan', 'Karyawan butuh mouse nirkabel untuk kerja harian.', 'ASSET_REQUEST', 'low', 'resolved', 6, NULL, 'Diberikan Dell Premier Wireless Mouse.'),
-('LOG-2026-003', 'Upgrade MacOS dan Pembersihan Cache Laptop Budi', 'Maintenance OS rutin pada unit MacBook Pro.', 'IT_SUPPORT', 'medium', 'resolved', 6, 1, 'Selesai di-update ke Sonoma 14.5');
-
--- Activity Logs
+-- Activity Logs (Initial system log only)
 INSERT INTO activity_logs (user_name, action, target_type, target_id, details) VALUES
-('System', 'INITIALIZE', 'SETTINGS', 1, 'Inisialisasi sistem GA & IT Workbench v2'),
-('Rian Pratama', 'CREATE_ASSET', 'ASSET', 1, 'Mendaftarkan unit MacBook Pro M3 Pro 14" (IT-LPT-001)'),
-('Rian Pratama', 'HANDOVER_ASSET', 'ASSET', 1, 'Menyerahkan IT-LPT-001 ke Budi Santoso (BAST/2026/01/001)');
+('System', 'INITIALIZE', 'SETTINGS', 1, 'Inisialisasi sistem GA & IT Workbench (Clean Slate)');
 
 
 -- ============================================================
@@ -325,3 +272,31 @@ INSERT INTO employees (nik, name, department, position, phone_number) VALUES
 ('EMP-004', 'Denny Kurniawan', 'Delivery Order', 'Koordinator Tim Pengiriman', '085711223344'),
 ('EMP-005', 'Hendra Wijaya', 'Marketing', 'Account Executive', '081822334455')
 ON CONFLICT (nik) DO NOTHING;
+
+-- ============================================================
+-- V1.4.0: Preventive Maintenance Schedules & History Extensions
+-- ============================================================
+CREATE TABLE IF NOT EXISTS maintenance_schedules (
+    id SERIAL PRIMARY KEY,
+    asset_id INT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    task_type VARCHAR(50) NOT NULL,
+    interval_months INT NOT NULL DEFAULT 3 CHECK (interval_months >= 1 AND interval_months <= 60),
+    last_done_date DATE,
+    next_due_date DATE NOT NULL,
+    executor_type VARCHAR(20) NOT NULL DEFAULT 'internal' CHECK (executor_type IN ('internal', 'vendor')),
+    default_vendor VARCHAR(100),
+    estimated_cost NUMERIC(12, 2) DEFAULT 0,
+    notes TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_maint_schedules_due ON maintenance_schedules(next_due_date ASC) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_maint_schedules_asset ON maintenance_schedules(asset_id);
+
+ALTER TABLE asset_maintenances
+    ADD COLUMN IF NOT EXISTS schedule_id INT REFERENCES maintenance_schedules(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS executor_type VARCHAR(20) DEFAULT 'internal',
+    ADD COLUMN IF NOT EXISTS performed_by VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS status_impact VARCHAR(30) DEFAULT 'none';

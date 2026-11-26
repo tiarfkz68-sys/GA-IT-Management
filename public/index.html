@@ -147,6 +147,7 @@
       #printable-bast, #printable-bast * { visibility: visible; }
       #printable-batch-bast, #printable-batch-bast * { visibility: visible; }
       #printable-csm-monthly, #printable-csm-monthly * { visibility: visible; }
+      #printable-maint-report, #printable-maint-report * { visibility: visible; }
       #printable-sticker {
         position: fixed;
         left: 0;
@@ -309,6 +310,11 @@
         <button onclick="nav('consumables')" id="nav-consumables" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-navy-800">
           <i class="fa-solid fa-box-archive w-4 text-center"></i>
           <span>Consumables (ATK)</span>
+        </button>
+
+        <button onclick="nav('maintenance')" id="nav-maintenance" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-navy-800">
+          <i class="fa-solid fa-screwdriver-wrench w-4 text-center text-amber-400"></i>
+          <span>Maintenance Aset</span>
         </button>
 
         <button onclick="nav('logbook')" id="nav-logbook" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-slate-300 hover:text-white hover:bg-navy-800">
@@ -802,6 +808,160 @@
               </thead>
               <tbody id="consumables-table-body"></tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <!-- TAB 4B: MAINTENANCE & PREVENTIVE CLEANING ASET -->
+      <!-- ===================================================== -->
+      <section id="view-maintenance" class="hidden space-y-4 w-full max-w-full min-w-0">
+        <div class="bg-linen-50 p-4 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-bold text-navy-900 flex items-center gap-2">
+              <i class="fa-solid fa-screwdriver-wrench text-amber-600" aria-hidden="true"></i> Pusat Maintenance &amp; Perawatan Berkala Aset
+            </h2>
+            <p class="text-xs text-navy-800">Jadwal otomatis Cuci AC, Cleaning Printer, Cleaning PC, Cleaning Laptop, serta rekap biaya internal &amp; vendor.</p>
+          </div>
+          <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <button onclick="openAdhocMaintModal()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition whitespace-nowrap">
+              <i class="fa-solid fa-wrench"></i> + Catat Cleaning / Servis
+            </button>
+            <button onclick="openCreateMaintScheduleModal()" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition whitespace-nowrap">
+              <i class="fa-solid fa-calendar-plus"></i> + Buat Jadwal Rutin
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Strip Maintenance -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="bg-linen-50 p-3.5 rounded-xl border border-rose-200 shadow-sm">
+            <div class="text-[11px] font-semibold text-rose-800">Terlambat (Overdue)</div>
+            <div id="maint-kpi-overdue" class="text-2xl font-black text-rose-700 font-mono mt-0.5">0</div>
+          </div>
+          <div class="bg-linen-50 p-3.5 rounded-xl border border-amber-200 shadow-sm">
+            <div class="text-[11px] font-semibold text-amber-900">Jatuh Tempo &le; 14 Hari</div>
+            <div id="maint-kpi-due-soon" class="text-2xl font-black text-amber-700 font-mono mt-0.5">0</div>
+          </div>
+          <div class="bg-linen-50 p-3.5 rounded-xl border border-emerald-200 shadow-sm">
+            <div class="text-[11px] font-semibold text-emerald-800">Selesai Bulan Ini</div>
+            <div id="maint-kpi-done-month" class="text-2xl font-black text-emerald-800 font-mono mt-0.5">0</div>
+          </div>
+          <div class="bg-linen-50 p-3.5 rounded-xl border border-linen-200 shadow-sm">
+            <div class="text-[11px] font-semibold text-navy-800">Total Biaya Bulan Ini</div>
+            <div id="maint-kpi-cost-month" class="text-xl sm:text-2xl font-black text-navy-900 font-mono mt-0.5 truncate">Rp 0</div>
+          </div>
+        </div>
+
+        <!-- Submenu Pills Maintenance -->
+        <div class="flex items-center gap-2 border-b border-linen-200 pb-2">
+          <button onclick="switchMaintTab('schedules')" id="maint-tab-schedules" class="px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition">
+            <i class="fa-solid fa-calendar-check mr-1.5"></i> 1. Jadwal Perawatan Rutin
+          </button>
+          <button onclick="switchMaintTab('logs')" id="maint-tab-logs" class="px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition">
+            <i class="fa-solid fa-receipt mr-1.5"></i> 2. Riwayat &amp; Laporan Biaya Servis
+          </button>
+        </div>
+
+        <!-- Sub-view 1: Jadwal Perawatan Rutin -->
+        <div id="maint-view-schedules" class="space-y-3">
+          <div class="bg-linen-50 p-3 rounded-xl border border-linen-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2.5">
+            <div class="relative flex-1 sm:max-w-xs">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-navy-400 text-xs" aria-hidden="true"></i>
+              <input id="maint-sched-search" oninput="loadMaintenanceSchedules()" type="text" placeholder="Cari kode/nama aset, lokasi, vendor..." aria-label="Cari jadwal maintenance aset" class="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-linen-300 rounded-lg text-navy-900 focus:ring-2 focus:ring-amber-500">
+            </div>
+            <select id="maint-sched-due-filter" onchange="loadMaintenanceSchedules()" aria-label="Filter status jatuh tempo maintenance" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
+              <option value="all">Semua Status Jadwal</option>
+              <option value="due_or_overdue">Perlu Dikerjakan (Terlambat &amp; Segera)</option>
+              <option value="overdue">Hanya Terlambat (Overdue)</option>
+              <option value="due_soon">Jatuh Tempo &le; 14 Hari</option>
+            </select>
+            <select id="maint-sched-task-filter" onchange="loadMaintenanceSchedules()" aria-label="Filter jenis pekerjaan maintenance" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
+              <option value="">Semua Jenis Perawatan</option>
+              <option value="cuci_ac">Cuci AC</option>
+              <option value="cleaning_printer">Cleaning Printer</option>
+              <option value="cleaning_pc">Cleaning PC</option>
+              <option value="cleaning_laptop">Cleaning Laptop</option>
+              <option value="service_berkala">Servis Berkala</option>
+              <option value="ganti_oli">Ganti Oli Kendaraan</option>
+              <option value="perbaikan">Perbaikan</option>
+            </select>
+          </div>
+
+          <div class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
+            <div class="table-responsive-wrapper">
+              <table class="w-full text-left border-collapse min-w-[820px]">
+                <thead>
+                  <tr>
+                    <th class="th-cell min-w-[200px]">Aset &amp; Lokasi</th>
+                    <th class="th-cell w-40">Jenis Perawatan</th>
+                    <th class="th-cell w-28 text-center">Interval</th>
+                    <th class="th-cell w-44">Pelaksana &amp; Est. Biaya</th>
+                    <th class="th-cell w-36">Jadwal Berikutnya</th>
+                    <th class="th-cell w-36">Status</th>
+                    <th class="th-cell w-44 text-right">Aksi Cepat</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-maint-schedules"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sub-view 2: Riwayat & Laporan Biaya Servis -->
+        <div id="maint-view-logs" class="hidden space-y-3">
+          <div class="bg-linen-50 p-3 rounded-xl border border-linen-200 shadow-sm flex flex-wrap items-center gap-2.5">
+            <div class="flex items-center gap-1.5">
+              <label for="maint-log-month" class="text-xs font-bold text-navy-800">Bulan:</label>
+              <input id="maint-log-month" type="month" onchange="loadMaintenanceLogs()" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500">
+            </div>
+            <select id="maint-log-task-filter" onchange="loadMaintenanceLogs()" aria-label="Filter jenis pekerjaan riwayat maintenance" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
+              <option value="">Semua Jenis Pekerjaan</option>
+              <option value="cuci_ac">Cuci AC</option>
+              <option value="cleaning_printer">Cleaning Printer</option>
+              <option value="cleaning_pc">Cleaning PC</option>
+              <option value="cleaning_laptop">Cleaning Laptop</option>
+              <option value="service_berkala">Servis Berkala</option>
+              <option value="perbaikan">Perbaikan</option>
+            </select>
+            <select id="maint-log-executor-filter" onchange="loadMaintenanceLogs()" aria-label="Filter pelaksana maintenance" class="text-xs bg-white border border-linen-300 rounded-lg px-2.5 py-1.5 text-navy-800 focus:ring-2 focus:ring-amber-500">
+              <option value="">Semua Pelaksana</option>
+              <option value="internal">Internal IT / GA</option>
+              <option value="vendor">Vendor Luar</option>
+            </select>
+            <div class="ml-auto flex items-center gap-2 flex-wrap">
+              <button onclick="exportMaintenanceExcel()" class="px-3 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-excel"></i> Export Excel
+              </button>
+              <a id="btn-maint-csv" href="/api/reports/export?type=maintenances" download class="px-3 py-1.5 text-xs font-bold bg-navy-800 hover:bg-navy-700 text-white rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-csv"></i> CSV
+              </a>
+              <button onclick="window.print()" class="px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-print"></i> Cetak
+              </button>
+            </div>
+          </div>
+
+          <div id="printable-maint-report" class="bg-linen-50 rounded-xl border border-linen-200 shadow-sm overflow-hidden">
+            <div class="p-3 border-b border-linen-200 bg-white flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="font-bold text-navy-900">Rekap Riwayat &amp; Biaya Maintenance Aset</span>
+              <span id="maint-log-summary-text" class="font-mono font-bold text-navy-800">0 pekerjaan &bull; Total Rp 0</span>
+            </div>
+            <div class="table-responsive-wrapper">
+              <table class="w-full text-left border-collapse min-w-[820px]">
+                <thead>
+                  <tr>
+                    <th class="th-cell w-28">Tanggal</th>
+                    <th class="th-cell min-w-[180px]">Aset &amp; Lokasi</th>
+                    <th class="th-cell w-36">Jenis Pekerjaan</th>
+                    <th class="th-cell w-40">Pelaksana / Vendor</th>
+                    <th class="th-cell w-28 text-right">Biaya</th>
+                    <th class="th-cell">Catatan Hasil</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-maint-logs"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -2358,10 +2518,12 @@
           <div>
             <label for="maint-type" class="block text-xs font-semibold text-navy-800 mb-1">Tipe Servis</label>
             <select id="maint-type" class="w-full text-xs bg-white border border-linen-300 rounded p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
-              <option value="service_berkala">Servis Berkala</option>
               <option value="cuci_ac">Cuci AC</option>
+              <option value="cleaning_printer">Cleaning Printer</option>
+              <option value="cleaning_pc">Cleaning PC</option>
+              <option value="cleaning_laptop">Cleaning Laptop</option>
+              <option value="service_berkala">Servis Berkala</option>
               <option value="perbaikan">Perbaikan Hardware</option>
-              <option value="upgrade_ram_ssd">Upgrade RAM / SSD</option>
               <option value="ganti_oli">Ganti Oli</option>
             </select>
           </div>
@@ -2387,6 +2549,148 @@
         <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
           <button type="button" onclick="closeModal('modal-maintenance')" class="px-3.5 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Batal</button>
           <button type="submit" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Buat Jadwal Maintenance Rutin -->
+  <div id="modal-maint-schedule" role="dialog" aria-modal="true" aria-labelledby="modal-title-maint-sched" class="modal-overlay hidden">
+    <div class="bg-linen-50 rounded-xl max-w-lg w-full p-6 shadow-2xl border border-linen-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-linen-200">
+        <h3 id="modal-title-maint-sched" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-calendar-plus text-amber-600" aria-hidden="true"></i> Buat Jadwal Perawatan Rutin Aset
+        </h3>
+        <button onclick="closeModal('modal-maint-schedule')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal jadwal maintenance"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-maint-schedule" onsubmit="submitNewMaintSchedule(event)" class="space-y-3">
+        <div>
+          <label for="sched-asset-id" class="block text-xs font-semibold text-navy-800 mb-1">Pilih Aset *</label>
+          <select id="sched-asset-id" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500" required></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="sched-task-type" class="block text-xs font-semibold text-navy-800 mb-1">Jenis Perawatan *</label>
+            <select id="sched-task-type" onchange="onSchedTaskTypeChange()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500" required>
+              <option value="cuci_ac">Cuci AC</option>
+              <option value="cleaning_printer">Cleaning Printer</option>
+              <option value="cleaning_pc">Cleaning PC</option>
+              <option value="cleaning_laptop">Cleaning Laptop</option>
+              <option value="service_berkala">Servis Berkala</option>
+              <option value="ganti_oli">Ganti Oli Kendaraan</option>
+            </select>
+          </div>
+          <div>
+            <label for="sched-interval-months" class="block text-xs font-semibold text-navy-800 mb-1">Interval Berulang *</label>
+            <select id="sched-interval-months" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="1">Setiap 1 Bulan</option>
+              <option value="3" selected>Setiap 3 Bulan (Cuci AC)</option>
+              <option value="6">Setiap 6 Bulan (Cleaning PC/Laptop/Printer)</option>
+              <option value="12">Setiap 12 Bulan (Tahunan)</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="sched-next-due" class="block text-xs font-semibold text-navy-800 mb-1">Jadwal Berikutnya *</label>
+            <input id="sched-next-due" type="date" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500" required>
+          </div>
+          <div>
+            <label for="sched-executor-type" class="block text-xs font-semibold text-navy-800 mb-1">Pelaksana Default</label>
+            <select id="sched-executor-type" onchange="toggleSchedVendorField()" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="internal">Internal IT / GA</option>
+              <option value="vendor">Vendor Luar</option>
+            </select>
+          </div>
+        </div>
+        <div id="sched-vendor-row" class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="sched-vendor" class="block text-xs font-semibold text-navy-800 mb-1">Nama Vendor / Teknisi</label>
+            <input id="sched-vendor" type="text" placeholder="Misal: CV Sejuk Mandiri / Tim IT" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label for="sched-est-cost" class="block text-xs font-semibold text-navy-800 mb-1">Estimasi Biaya (Rp)</label>
+            <input id="sched-est-cost" type="number" min="0" value="0" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+        <div>
+          <label for="sched-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan Perawatan</label>
+          <input id="sched-notes" type="text" placeholder="Misal: Bersihkan blower indoor/outdoor & cek freon" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
+          <button type="button" onclick="closeModal('modal-maint-schedule')" class="px-3.5 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-navy-950 rounded-lg shadow-sm transition">Simpan Jadwal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Eksekusi / Tandai Selesai Cleaning & Servis -->
+  <div id="modal-maint-complete" role="dialog" aria-modal="true" aria-labelledby="modal-title-maint-complete" class="modal-overlay hidden">
+    <div class="bg-linen-50 rounded-xl max-w-md w-full p-6 shadow-2xl border border-linen-200 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-linen-200">
+        <h3 id="modal-title-maint-complete" class="font-bold text-sm text-navy-900 flex items-center gap-2">
+          <i class="fa-solid fa-circle-check text-emerald-700" aria-hidden="true"></i> <span id="maint-complete-heading">Tandai Selesai Maintenance</span>
+        </h3>
+        <button onclick="closeModal('modal-maint-complete')" class="text-navy-400 hover:text-navy-700 min-w-[28px] min-h-[28px] flex items-center justify-center p-1 rounded" aria-label="Tutup modal selesai maintenance"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-maint-complete" onsubmit="submitCompleteMaint(event)" class="space-y-3">
+        <input type="hidden" id="comp-schedule-id">
+        <div id="comp-sched-asset-box" class="bg-linen-100 p-2.5 rounded-lg border border-linen-200 text-xs font-bold text-navy-900"></div>
+        <div id="comp-adhoc-fields" class="hidden space-y-3">
+          <div>
+            <label for="comp-adhoc-asset" class="block text-xs font-semibold text-navy-800 mb-1">Pilih Aset *</label>
+            <select id="comp-adhoc-asset" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500"></select>
+          </div>
+          <div>
+            <label for="comp-adhoc-type" class="block text-xs font-semibold text-navy-800 mb-1">Jenis Pekerjaan *</label>
+            <select id="comp-adhoc-type" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-semibold text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="cuci_ac">Cuci AC</option>
+              <option value="cleaning_printer">Cleaning Printer</option>
+              <option value="cleaning_pc">Cleaning PC</option>
+              <option value="cleaning_laptop">Cleaning Laptop</option>
+              <option value="service_berkala">Servis Berkala</option>
+              <option value="perbaikan">Perbaikan Hardware</option>
+              <option value="ganti_oli">Ganti Oli Kendaraan</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="comp-done-date" class="block text-xs font-semibold text-navy-800 mb-1">Tanggal Dikerjakan *</label>
+            <input id="comp-done-date" type="date" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500" required>
+          </div>
+          <div>
+            <label for="comp-executor-type" class="block text-xs font-semibold text-navy-800 mb-1">Pelaksana</label>
+            <select id="comp-executor-type" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+              <option value="internal">Internal IT / GA</option>
+              <option value="vendor">Vendor Luar</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="comp-vendor" class="block text-xs font-semibold text-navy-800 mb-1">Teknisi / Vendor</label>
+            <input id="comp-vendor" type="text" placeholder="Tim IT / Nama Vendor" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+          <div>
+            <label for="comp-cost" class="block text-xs font-semibold text-navy-800 mb-1">Biaya Aktual (Rp)</label>
+            <input id="comp-cost" type="number" min="0" value="0" class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 font-mono font-bold text-navy-900 focus:ring-2 focus:ring-amber-500">
+          </div>
+        </div>
+        <div>
+          <label for="comp-notes" class="block text-xs font-semibold text-navy-800 mb-1">Catatan Hasil Pekerjaan</label>
+          <textarea id="comp-notes" rows="2" placeholder="Misal: Debu kipas & heatsink dibersihkan, kondisi normal." class="w-full text-xs bg-white border border-linen-300 rounded-lg p-2.5 text-navy-900 focus:ring-2 focus:ring-amber-500"></textarea>
+        </div>
+        <label for="comp-mark-repair" class="flex items-center gap-2 text-xs text-navy-800 cursor-pointer pt-1">
+          <input id="comp-mark-repair" type="checkbox" class="rounded text-amber-500 focus:ring-amber-500">
+          <span>Ubah status aset ke <strong>Dalam Perbaikan</strong> (biarkan kosong untuk cleaning rutin)</span>
+        </label>
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-linen-200">
+          <button type="button" onclick="closeModal('modal-maint-complete')" class="px-3.5 py-1.5 text-xs font-bold text-navy-700 bg-linen-200 hover:bg-linen-300 rounded-lg transition">Batal</button>
+          <button type="submit" class="px-4 py-1.5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition">
+            <i class="fa-solid fa-check mr-1"></i> Simpan Selesai
+          </button>
         </div>
       </form>
     </div>
@@ -4126,7 +4430,7 @@
         activeNav.classList.remove('text-slate-400');
       }
 
-      ['view-dashboard', 'view-assets', 'view-add-asset', 'view-accessories', 'view-consumables', 'view-logbook', 'view-audit', 'view-import', 'view-settings'].forEach(v => {
+      ['view-dashboard', 'view-assets', 'view-add-asset', 'view-accessories', 'view-consumables', 'view-maintenance', 'view-logbook', 'view-audit', 'view-import', 'view-settings'].forEach(v => {
         const el = document.getElementById(v);
         if (el) el.classList.add('hidden');
       });
@@ -4136,6 +4440,7 @@
         assets: 'Daftar Aset Utama (IT & GA)',
         accessories: 'Aksesoris & Peripherals',
         consumables: 'Consumables & Stok ATK',
+        maintenance: 'Maintenance & Perawatan Berkala',
         logbook: 'Logbook Pekerjaan & Tiket',
         audit: 'Audit Trail & Log Perubahan',
         import: 'Pusat Import Data Master',
@@ -4154,6 +4459,7 @@
       if (tab === 'assets') loadAssets();
       if (tab === 'accessories') loadAccessories();
       if (tab === 'consumables') loadConsumables();
+      if (tab === 'maintenance') loadMaintenanceView();
       if (tab === 'logbook') loadTickets();
       if (tab === 'audit') loadActivityLogs();
       if (tab === 'import') switchMasterImportType(masterImportState.type || 'categories');
@@ -5529,7 +5835,411 @@
     }
 
     // ============================================================
-    // PUSAT IMPORT DATA MASTER (KATEGORI, LOKASI, PIC, ATK)
+    // PUSAT MAINTENANCE & PERAWATAN BERKALA ASET
+    // ============================================================
+    const MAINT_TASK_LABELS = {
+      cuci_ac: 'Cuci AC',
+      cleaning_printer: 'Cleaning Printer',
+      cleaning_pc: 'Cleaning PC',
+      cleaning_laptop: 'Cleaning Laptop',
+      service_berkala: 'Servis Berkala',
+      ganti_oli: 'Ganti Oli Kendaraan',
+      perbaikan: 'Perbaikan Hardware',
+      other: 'Lainnya'
+    };
+
+    const maintenanceState = {
+      schedules: [],
+      logs: []
+    };
+
+    function formatMaintTaskLabel(t) {
+      return MAINT_TASK_LABELS[t] || (t || '-').replace(/_/g, ' ');
+    }
+
+    async function loadMaintenanceView() {
+      const mInput = document.getElementById('maint-log-month');
+      if (mInput && !mInput.value) {
+        mInput.value = new Date().toISOString().slice(0, 7);
+      }
+      await Promise.all([loadMaintenanceSchedules(), loadMaintenanceLogs()]);
+    }
+
+    function switchMaintTab(tab) {
+      const btnSched = document.getElementById('maint-tab-schedules');
+      const btnLogs = document.getElementById('maint-tab-logs');
+      const viewSched = document.getElementById('maint-view-schedules');
+      const viewLogs = document.getElementById('maint-view-logs');
+
+      if (tab === 'schedules') {
+        btnSched.className = 'px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition';
+        btnLogs.className = 'px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition';
+        viewSched.classList.remove('hidden');
+        viewLogs.classList.add('hidden');
+        loadMaintenanceSchedules();
+      } else {
+        btnLogs.className = 'px-4 py-2 text-xs font-bold rounded-lg bg-amber-500 text-navy-950 shadow-sm transition';
+        btnSched.className = 'px-4 py-2 text-xs font-bold rounded-lg text-navy-700 hover:bg-linen-200 transition';
+        viewLogs.classList.remove('hidden');
+        viewSched.classList.add('hidden');
+        loadMaintenanceLogs();
+      }
+    }
+
+    async function loadMaintenanceSchedules() {
+      const due_filter = document.getElementById('maint-sched-due-filter')?.value || 'all';
+      const task_type = document.getElementById('maint-sched-task-filter')?.value || '';
+      const search = document.getElementById('maint-sched-search')?.value?.trim() || '';
+
+      const params = new URLSearchParams();
+      if (due_filter) params.set('due_filter', due_filter);
+      if (task_type) params.set('task_type', task_type);
+      if (search) params.set('search', search);
+
+      try {
+        const res = await fetch(`/api/maintenances/schedules?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        maintenanceState.schedules = data.schedules || [];
+
+        const kpi = data.kpi || {};
+        document.getElementById('maint-kpi-overdue').innerText = kpi.overdue_count ?? 0;
+        document.getElementById('maint-kpi-due-soon').innerText = kpi.due_soon_count ?? 0;
+        document.getElementById('maint-kpi-done-month').innerText = kpi.done_month_count ?? 0;
+        document.getElementById('maint-kpi-cost-month').innerText = `Rp ${Number(kpi.cost_month_total || 0).toLocaleString('id-ID')}`;
+
+        renderMaintenanceSchedulesTable(maintenanceState.schedules);
+      } catch (err) {
+        console.error('Error loading maintenance schedules:', err);
+      }
+    }
+
+    function renderMaintenanceSchedulesTable(items) {
+      const tbody = document.getElementById('tbody-maint-schedules');
+      if (!tbody) return;
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-navy-700/60 text-xs">Belum ada jadwal perawatan rutin. Klik <strong>+ Buat Jadwal Rutin</strong> untuk memulai.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = items.map(s => {
+        const dueDateStr = s.next_due_date ? new Date(s.next_due_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+        let badgeHtml = '';
+        if (s.due_status === 'overdue') {
+          badgeHtml = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">Terlambat ${Math.abs(s.days_remaining)} hr</span>`;
+        } else if (s.due_status === 'due_soon') {
+          badgeHtml = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">${s.days_remaining === 0 ? 'Jatuh Tempo Hari Ini' : `Segera (${s.days_remaining} hr lagi)`}</span>`;
+        } else {
+          badgeHtml = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Terjadwal (${s.days_remaining} hr)</span>`;
+        }
+
+        const execBadge = s.executor_type === 'vendor'
+          ? `<div class="text-xs font-semibold text-navy-900">${escapeHtml(s.default_vendor || 'Vendor Luar')}</div><div class="text-[11px] font-mono text-amber-800">Est: Rp ${Number(s.estimated_cost || 0).toLocaleString('id-ID')}</div>`
+          : `<div class="text-xs font-semibold text-navy-900">Internal IT/GA</div><div class="text-[11px] text-navy-600">${s.estimated_cost > 0 ? 'Est: Rp ' + Number(s.estimated_cost).toLocaleString('id-ID') : 'Tanpa Biaya (Rp 0)'}</div>`;
+
+        return `
+          <tr class="hover:bg-linen-100/60">
+            <td class="td-cell">
+              <div class="font-bold text-navy-900">${escapeHtml(s.asset_name)}</div>
+              <div class="text-[11px] text-navy-700/80"><span class="font-mono font-bold">${escapeHtml(s.asset_code)}</span> &bull; ${escapeHtml(s.asset_location || '-')}</div>
+            </td>
+            <td class="td-cell font-bold text-xs text-navy-900">${escapeHtml(formatMaintTaskLabel(s.task_type))}</td>
+            <td class="td-cell text-center font-mono text-xs font-semibold text-navy-800">Tiap ${s.interval_months} bln</td>
+            <td class="td-cell">${execBadge}</td>
+            <td class="td-cell font-mono text-xs font-bold text-navy-900">${dueDateStr}</td>
+            <td class="td-cell">${badgeHtml}</td>
+            <td class="td-cell text-right whitespace-nowrap">
+              <div class="inline-flex items-center gap-1.5">
+                <button onclick="openCompleteScheduleModal(${s.id})" class="px-2.5 py-1 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded shadow-sm transition">
+                  <i class="fa-solid fa-check mr-1"></i> Selesai
+                </button>
+                <button onclick="deleteMaintSchedule(${s.id})" aria-label="Hapus jadwal maintenance ${escapeHtml(s.asset_code)}" class="min-w-[28px] min-h-[28px] inline-flex items-center justify-center text-xs text-navy-400 hover:text-rose-600 p-1 rounded transition">
+                  <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openCreateMaintScheduleModal() {
+      const sel = document.getElementById('sched-asset-id');
+      if (sel) {
+        if (!state.assets || state.assets.length === 0) {
+          sel.innerHTML = '<option value="">-- Belum ada aset terdaftar --</option>';
+        } else {
+          sel.innerHTML = state.assets.map(a =>
+            `<option value="${a.id}">[${escapeHtml(a.code)}] ${escapeHtml(a.name)} (${escapeHtml(a.location_name || a.location || '-')})</option>`
+          ).join('');
+        }
+      }
+      document.getElementById('form-maint-schedule').reset();
+      document.getElementById('sched-next-due').value = new Date().toISOString().slice(0, 10);
+      onSchedTaskTypeChange();
+      openModal('modal-maint-schedule');
+    }
+
+    function onSchedTaskTypeChange() {
+      const t = document.getElementById('sched-task-type')?.value;
+      const intervalEl = document.getElementById('sched-interval-months');
+      const execEl = document.getElementById('sched-executor-type');
+      if (t === 'cuci_ac') {
+        if (intervalEl) intervalEl.value = '3';
+        if (execEl) execEl.value = 'vendor';
+      } else if (['cleaning_printer', 'cleaning_pc', 'cleaning_laptop'].includes(t)) {
+        if (intervalEl) intervalEl.value = '6';
+        if (execEl) execEl.value = 'internal';
+      }
+      toggleSchedVendorField();
+    }
+
+    function toggleSchedVendorField() {
+      const exec = document.getElementById('sched-executor-type')?.value;
+      const vendorEl = document.getElementById('sched-vendor');
+      const costEl = document.getElementById('sched-est-cost');
+      if (exec === 'internal') {
+        if (vendorEl && !vendorEl.value) vendorEl.placeholder = 'Tim Internal IT / GA';
+        if (costEl && !costEl.value) costEl.value = '0';
+      } else {
+        if (vendorEl) vendorEl.placeholder = 'Misal: CV Sejuk Mandiri';
+      }
+    }
+
+    async function submitNewMaintSchedule(e) {
+      e.preventDefault();
+      const asset_id = document.getElementById('sched-asset-id').value;
+      const task_type = document.getElementById('sched-task-type').value;
+      const interval_months = document.getElementById('sched-interval-months').value;
+      const next_due_date = document.getElementById('sched-next-due').value;
+      const executor_type = document.getElementById('sched-executor-type').value;
+      const default_vendor = document.getElementById('sched-vendor').value.trim();
+      const estimated_cost = document.getElementById('sched-est-cost').value || 0;
+      const notes = document.getElementById('sched-notes').value.trim();
+
+      if (!asset_id) {
+        showToast('Daftarkan minimal 1 aset terlebih dahulu.', false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/maintenances/schedules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            asset_id: parseInt(asset_id, 10),
+            task_type,
+            interval_months: parseInt(interval_months, 10),
+            next_due_date,
+            executor_type,
+            default_vendor,
+            estimated_cost: parseFloat(estimated_cost) || 0,
+            notes,
+            userName: state.currentUser?.name || 'Admin'
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        showToast('Jadwal perawatan rutin berhasil dibuat!');
+        closeModal('modal-maint-schedule');
+        await loadMaintenanceView();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function openCompleteScheduleModal(schedId) {
+      const s = maintenanceState.schedules.find(item => item.id === schedId);
+      if (!s) return;
+
+      document.getElementById('comp-schedule-id').value = s.id;
+      document.getElementById('maint-complete-heading').innerText = `Selesai: ${formatMaintTaskLabel(s.task_type)}`;
+      document.getElementById('comp-sched-asset-box').classList.remove('hidden');
+      document.getElementById('comp-sched-asset-box').innerText = `[${s.asset_code}] ${s.asset_name} • ${formatMaintTaskLabel(s.task_type)} (Interval: ${s.interval_months} bln)`;
+      document.getElementById('comp-adhoc-fields').classList.add('hidden');
+
+      document.getElementById('comp-done-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('comp-executor-type').value = s.executor_type || 'internal';
+      document.getElementById('comp-vendor').value = s.default_vendor || (s.executor_type === 'internal' ? 'Tim Internal IT/GA' : '');
+      document.getElementById('comp-cost').value = s.estimated_cost || 0;
+      document.getElementById('comp-notes').value = s.notes || '';
+      document.getElementById('comp-mark-repair').checked = false;
+
+      openModal('modal-maint-complete');
+    }
+
+    function openAdhocMaintModal() {
+      document.getElementById('comp-schedule-id').value = '';
+      document.getElementById('maint-complete-heading').innerText = 'Catat Cleaning / Servis Aset';
+      document.getElementById('comp-sched-asset-box').classList.add('hidden');
+      document.getElementById('comp-adhoc-fields').classList.remove('hidden');
+
+      const sel = document.getElementById('comp-adhoc-asset');
+      if (sel) {
+        if (!state.assets || state.assets.length === 0) {
+          sel.innerHTML = '<option value="">-- Belum ada aset terdaftar --</option>';
+        } else {
+          sel.innerHTML = state.assets.map(a =>
+            `<option value="${a.id}">[${escapeHtml(a.code)}] ${escapeHtml(a.name)}</option>`
+          ).join('');
+        }
+      }
+
+      document.getElementById('comp-done-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('comp-executor-type').value = 'internal';
+      document.getElementById('comp-vendor').value = '';
+      document.getElementById('comp-cost').value = 0;
+      document.getElementById('comp-notes').value = '';
+      document.getElementById('comp-mark-repair').checked = false;
+
+      openModal('modal-maint-complete');
+    }
+
+    async function submitCompleteMaint(e) {
+      e.preventDefault();
+      const scheduleId = document.getElementById('comp-schedule-id').value;
+      const maintenance_date = document.getElementById('comp-done-date').value;
+      const executor_type = document.getElementById('comp-executor-type').value;
+      const vendor = document.getElementById('comp-vendor').value.trim();
+      const cost = parseFloat(document.getElementById('comp-cost').value) || 0;
+      const notes = document.getElementById('comp-notes').value.trim();
+      const mark_asset_repair = Boolean(document.getElementById('comp-mark-repair').checked);
+
+      const url = scheduleId
+        ? `/api/maintenances/schedules/${scheduleId}/complete`
+        : '/api/maintenances/logs';
+
+      const payload = scheduleId
+        ? { maintenance_date, executor_type, vendor, cost, notes, mark_asset_repair, performed_by: state.currentUser?.name, userName: state.currentUser?.name }
+        : {
+            asset_id: parseInt(document.getElementById('comp-adhoc-asset').value, 10),
+            type: document.getElementById('comp-adhoc-type').value,
+            maintenance_date,
+            executor_type,
+            vendor,
+            cost,
+            notes,
+            mark_asset_repair,
+            performed_by: state.currentUser?.name,
+            userName: state.currentUser?.name
+          };
+
+      if (!scheduleId && !payload.asset_id) {
+        showToast('Pilih aset terlebih dahulu.', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert('Gagal: ' + err.error);
+          return;
+        }
+        const data = await res.json();
+        showToast(data.message || 'Maintenance berhasil dicatat!');
+        closeModal('modal-maint-complete');
+        await Promise.all([loadMaintenanceView(), loadAssets()]);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteMaintSchedule(id) {
+      if (!confirm('Hapus jadwal perawatan rutin ini?')) return;
+      try {
+        await fetch(`/api/maintenances/schedules/${id}?userName=${encodeURIComponent(state.currentUser?.name || 'Admin')}`, { method: 'DELETE' });
+        showToast('Jadwal maintenance dihapus');
+        await loadMaintenanceView();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadMaintenanceLogs() {
+      const month = document.getElementById('maint-log-month')?.value || '';
+      const task_type = document.getElementById('maint-log-task-filter')?.value || '';
+      const executor_type = document.getElementById('maint-log-executor-filter')?.value || '';
+
+      const params = new URLSearchParams();
+      if (month) params.set('month', month);
+      if (task_type) params.set('task_type', task_type);
+      if (executor_type) params.set('executor_type', executor_type);
+
+      const csvBtn = document.getElementById('btn-maint-csv');
+      if (csvBtn) {
+        csvBtn.href = `/api/reports/export?type=maintenances${month ? `&month=${encodeURIComponent(month)}` : ''}`;
+      }
+
+      try {
+        const res = await fetch(`/api/maintenances/logs?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        maintenanceState.logs = data.logs || [];
+
+        const sum = data.summary || {};
+        document.getElementById('maint-log-summary-text').innerText =
+          `${sum.total_logs || 0} pekerjaan (${sum.internal_count || 0} Internal, ${sum.vendor_count || 0} Vendor) • Total Rp ${Number(sum.total_cost || 0).toLocaleString('id-ID')}`;
+
+        const tbody = document.getElementById('tbody-maint-logs');
+        if (!tbody) return;
+        if (maintenanceState.logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-navy-700/60 text-xs">Belum ada riwayat maintenance pada filter ini.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = maintenanceState.logs.map(m => `
+          <tr class="hover:bg-linen-100/60">
+            <td class="td-cell font-mono text-xs text-navy-800">${new Date(m.maintenance_date).toLocaleDateString('id-ID')}</td>
+            <td class="td-cell">
+              <div class="font-bold text-navy-900">${escapeHtml(m.asset_name)}</div>
+              <div class="text-[11px] text-navy-700/70"><span class="font-mono font-bold">${escapeHtml(m.asset_code)}</span> &bull; ${escapeHtml(m.asset_location || '-')}</div>
+            </td>
+            <td class="td-cell font-bold text-xs text-navy-900">${escapeHtml(formatMaintTaskLabel(m.type))}</td>
+            <td class="td-cell text-xs">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border ${m.executor_type === 'vendor' ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-navy-100 text-navy-900 border-navy-200'}">${m.executor_type === 'vendor' ? 'Vendor' : 'Internal'}</span>
+              <span class="ml-1 font-medium text-navy-900">${escapeHtml(m.vendor || '-')}</span>
+            </td>
+            <td class="td-cell text-right font-mono font-bold text-xs text-navy-900">Rp ${Number(m.cost || 0).toLocaleString('id-ID')}</td>
+            <td class="td-cell text-xs text-navy-800">${escapeHtml(m.notes || '-')}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Error loading maintenance logs:', err);
+      }
+    }
+
+    function exportMaintenanceExcel() {
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat.', false);
+        return;
+      }
+      const rows = (maintenanceState.logs || []).map((m, idx) => ({
+        'No': idx + 1,
+        'Tanggal': new Date(m.maintenance_date).toISOString().slice(0, 10),
+        'Kode Aset': m.asset_code,
+        'Nama Aset': m.asset_name,
+        'Lokasi': m.asset_location || '-',
+        'Jenis Pekerjaan': formatMaintTaskLabel(m.type),
+        'Tipe Pelaksana': m.executor_type === 'vendor' ? 'Vendor Luar' : 'Internal IT/GA',
+        'Vendor / Teknisi': m.vendor || '-',
+        'Biaya (Rp)': Number(m.cost || 0),
+        'Catatan': m.notes || '-'
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Info: 'Tidak ada data maintenance' }]);
+      XLSX.utils.book_append_sheet(wb, ws, 'Riwayat_Maintenance');
+      const month = document.getElementById('maint-log-month')?.value || 'Semua';
+      XLSX.writeFile(wb, `Laporan_Maintenance_Aset_${month}.xlsx`);
+      showToast('Laporan Excel Maintenance berhasil diunduh!');
+    }
     // ============================================================
     const masterImportState = {
       type: 'categories',

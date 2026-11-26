@@ -80,7 +80,17 @@ async function runTests() {
   assert(typeof handover.data.bast_number === 'string', `BAST number created`);
 
   // 5. Consumable Checkout Over-limit (Must reject 400)
-  const excessCheckout = await request('POST', '/api/consumables/1/checkout', {
+  const testConsumable = await request('POST', '/api/consumables', {
+    name: `CI Test ATK ${Date.now()}`,
+    category: 'atk',
+    current_stock: 10,
+    min_stock_alert: 2,
+    unit: 'pcs'
+  }, login.data?.token);
+  assert(testConsumable.status === 201 && testConsumable.data.id, `POST /api/consumables creates self-contained test consumable`);
+  const testConsumableId = testConsumable.data.id;
+
+  const excessCheckout = await request('POST', `/api/consumables/${testConsumableId}/checkout`, {
     recipient_name: 'CI Tester',
     quantity: 999999
   });
@@ -88,7 +98,7 @@ async function runTests() {
   assert(excessCheckout.data.code === 'INSUFFICIENT_STOCK', `Rejection code is INSUFFICIENT_STOCK`);
 
   // 6. Consumable Checkout Valid (Atomic & Transactional)
-  const validCheckout = await request('POST', '/api/consumables/1/checkout', {
+  const validCheckout = await request('POST', `/api/consumables/${testConsumableId}/checkout`, {
     recipient_name: 'CI Tester',
     quantity: 1,
     notes: 'Testing atomic checkout in CI'
@@ -275,6 +285,66 @@ async function runTests() {
   assert(newLogin.status === 200, `Updated password works on login`);
 
   await request('DELETE', `/api/users/${tmpUser.data.id}`, null, authToken);
+
+  // 18. Maintenance Schedules & History Flow (Cuci AC / Routine Cleaning)
+  const maintAsset = await request('POST', '/api/assets', {
+    code: `AC-CI-${ts}`,
+    name: `AC Ruang Meeting CI ${ts}`,
+    category: 'GA',
+    subcategory: 'ac',
+    status: 'available'
+  }, authToken);
+  assert(maintAsset.status === 201 && maintAsset.data.id, `POST /api/assets creates temporary GA AC asset for maintenance test`);
+  const maintAssetId = maintAsset.data.id;
+
+  const schedCreate = await request('POST', '/api/maintenances/schedules', {
+    asset_id: maintAssetId,
+    task_type: 'cuci_ac',
+    interval_months: 3,
+    next_due_date: '2026-11-01',
+    executor_type: 'vendor',
+    default_vendor: 'CV Sejuk Jaya',
+    estimated_cost: 150000,
+    notes: 'Cuci AC rutin per 3 bulan'
+  }, authToken);
+  assert(schedCreate.status === 201 && schedCreate.data.id, `POST /api/maintenances/schedules creates 3-month cuci_ac schedule`);
+  const schedId = schedCreate.data.id;
+
+  const schedList = await request('GET', '/api/maintenances/schedules?due_filter=all', null, authToken);
+  assert(
+    schedList.status === 200 && Array.isArray(schedList.data.schedules) && schedList.data.schedules.some((s) => s.id === schedId),
+    `GET /api/maintenances/schedules lists the newly created schedule`
+  );
+
+  const completeSched = await request('POST', `/api/maintenances/schedules/${schedId}/complete`, {
+    maintenance_date: '2026-11-26',
+    executor_type: 'vendor',
+    vendor: 'CV Sejuk Jaya',
+    cost: 175000,
+    notes: 'Cuci evaporator dan tambah freon',
+    mark_asset_repair: false
+  }, authToken);
+  assert(completeSched.status === 200 && completeSched.data.log && completeSched.data.schedule, `POST /api/maintenances/schedules/:id/complete succeeds`);
+
+  const updatedDue = String(completeSched.data.schedule.next_due_date || '').slice(0, 10);
+  assert(updatedDue === '2027-02-26', `Completed 3-month schedule advances next_due_date to 2027-02-26 (got ${updatedDue})`);
+
+  const assetAfterCleaning = await request('GET', '/api/assets', null, authToken);
+  const checkedAsset = Array.isArray(assetAfterCleaning.data) ? assetAfterCleaning.data.find((a) => a.id === maintAssetId) : null;
+  assert(checkedAsset && checkedAsset.status === 'available', `Routine cleaning preserves asset status 'available' when mark_asset_repair is false`);
+
+  const maintLogs = await request('GET', '/api/maintenances/logs', null, authToken);
+  assert(
+    maintLogs.status === 200 && Array.isArray(maintLogs.data.logs) && maintLogs.data.logs.some((l) => l.schedule_id === schedId),
+    `GET /api/maintenances/logs includes completed cleaning log`
+  );
+
+  const maintCsv = await request('GET', '/api/reports/export?type=maintenances', null, authToken);
+  assert(maintCsv.status === 200 && typeof maintCsv.data === 'string' && maintCsv.data.includes('CV Sejuk Jaya'), `GET /api/reports/export?type=maintenances returns CSV containing maintenance log`);
+
+  const delSched = await request('DELETE', `/api/maintenances/schedules/${schedId}`, null, authToken);
+  assert(delSched.status === 200, `DELETE /api/maintenances/schedules/:id removes test schedule`);
+  await request('DELETE', `/api/assets/${maintAssetId}`, null, authToken);
 
   console.log(`\n--- TEST RESULTS: ${passes} passed, ${failures} failed ---`);
   if (failures > 0) {

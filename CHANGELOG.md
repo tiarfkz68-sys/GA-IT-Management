@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-26
+
+### Added
+- **Maintenance Aset Terpusat (`#nav-maintenance` / `#view-maintenance`)**:
+  - Skema tabel `maintenance_schedules` beserta ekstensi `asset_maintenances` (`schedule_id`, `executor_type`, `performed_by`, `status_impact`) lewat migrasi reversibel [`migrations/20261126_004_maintenance_schedules.up.sql`](file:///c:/Users/IT/Documents/GA-IT%20Management/migrations/20261126_004_maintenance_schedules.up.sql).
+  - REST API terpusat `/api/maintenances` (`GET/POST/DELETE /schedules`, `POST /schedules/:id/complete`, `GET/POST /logs`) di [`src/routes/maintenances.js`](file:///c:/Users/IT/Documents/GA-IT%20Management/src/routes/maintenances.js).
+  - Mendukung jenis perawatan rutin **Cuci AC**, **Cleaning Printer**, **Cleaning PC**, **Cleaning Laptop**, dan **Servis Berkala / Perbaikan**, pelaksana **Internal** (Rp 0) maupun **Vendor Eksternal** (berbiaya), aksi cepat 1-klik **Tandai Selesai** yang otomatis memajukan `next_due_date` tanpa mengubah status aset aktif (`available`/`assigned`) kecuali opsi perbaikan dicentang, serta ekspor CSV (`GET /api/reports/export?type=maintenances`), Excel, dan cetak A4.
+- **Clean Slate Inventory Seed**:
+  - Mengosongkan data demo dummy (`assets`, `accessories`, `consumables`, `consumable_checkouts`, `asset_maintenances`, `asset_user_history`, `tickets`) pada [`init.sql`](file:///c:/Users/IT/Documents/GA-IT%20Management/init.sql) dengan tetap mempertahankan data master (`users`, `app_settings`, `categories`, `locations`, `employees`).
+  - Menambahkan skrip cleanup aman produksi [`scripts/clean-dummy-data.sql`](file:///c:/Users/IT/Documents/GA-IT%20Management/scripts/clean-dummy-data.sql).
+
+### Verified
+- **Integration & Security Tests**: 68/68 tests passing (`npm test`), mencakup test self-contained consumable dan alur penuh schedule + completion + CSV maintenance.
+- **Accessibility**: 0 WCAG 2.2 AA violations via `@axe-core/cli 4.13.0`.
+- **Syntax Gate**: 25/25 JavaScript files / inline scripts verified (`npm run check`).
+
+---
+
 ## [1.3.0] - 2026-11-26
 
 ### Added

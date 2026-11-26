@@ -167,6 +167,40 @@ router.get('/export', async (req, res) => {
           sanitizeCsvCell(status)
         ].join(',') + '\n';
       });
+    } else if (type === 'maintenances') {
+      const monthParam = req.query.month && /^\d{4}-\d{2}$/.test(req.query.month) ? req.query.month : '';
+      const params = monthParam ? [`${monthParam}-01`] : [];
+      const monthWhere = monthParam
+        ? `WHERE m.maintenance_date >= $1::date AND m.maintenance_date < ($1::date + INTERVAL '1 month')`
+        : '';
+      const result = await query(`
+        SELECT m.maintenance_date, a.code as asset_code, a.name as asset_name,
+               COALESCE(l.name, a.location) as asset_location,
+               m.type, COALESCE(m.executor_type, 'internal') as executor_type,
+               m.vendor, m.performed_by, m.cost, m.notes
+        FROM asset_maintenances m
+        JOIN assets a ON m.asset_id = a.id
+        LEFT JOIN locations l ON a.location_id = l.id
+        ${monthWhere}
+        ORDER BY m.maintenance_date DESC, m.id DESC
+      `, params);
+
+      csvContent = `Laporan Maintenance Aset${monthParam ? ` - Periode ${monthParam}` : ''}\n`;
+      csvContent += 'Tanggal,Kode Aset,Nama Aset,Lokasi,Jenis Pekerjaan,Pelaksana,Vendor/Teknisi,PIC Pencatat,Biaya (Rp),Catatan\n';
+      result.rows.forEach(r => {
+        csvContent += [
+          sanitizeCsvCell(r.maintenance_date ? new Date(r.maintenance_date).toISOString().slice(0, 10) : '-'),
+          sanitizeCsvCell(r.asset_code),
+          sanitizeCsvCell(r.asset_name),
+          sanitizeCsvCell(r.asset_location),
+          sanitizeCsvCell(r.type),
+          sanitizeCsvCell(r.executor_type),
+          sanitizeCsvCell(r.vendor || '-'),
+          sanitizeCsvCell(r.performed_by || '-'),
+          sanitizeCsvCell(r.cost || 0),
+          sanitizeCsvCell(r.notes || '-')
+        ].join(',') + '\n';
+      });
     } else {
       return sendError(res, 400, `Tipe ekspor "${type}" tidak valid.`, 'INVALID_EXPORT_TYPE');
     }

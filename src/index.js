@@ -16,6 +16,7 @@ import activityLogRoutes from './routes/activityLogs.js';
 import reportRoutes from './routes/reports.js';
 import locationsRoutes from './routes/locations.js';
 import employeesRoutes from './routes/employees.js';
+import maintenancesRoutes from './routes/maintenances.js';
 import { sendError } from './utils/errorResponse.js';
 import { query } from './db.js';
 
@@ -96,6 +97,7 @@ app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/locations', locationsRoutes);
 app.use('/api/employees', employeesRoutes);
+app.use('/api/maintenances', maintenancesRoutes);
 
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {

@@ -1,6 +1,6 @@
 {
   "name": "ga-it-management",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Unified General Affairs and IT Management Super App Core",
   "main": "src/index.js",
   "type": "module",
